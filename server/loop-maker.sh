@@ -93,7 +93,8 @@ if ! DURATION=$(ffprobe -v error -show_entries format=duration -of default=nopri
 fi
 
 # Get basic video info with error handling
-FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE" 2>/dev/null || echo "24/1")
+FPS=$(ffprobe -v 0 -select_streams v:0 -of csv=p=0 \
+       -show_entries stream=r_frame_rate "$INPUT_FILE" | bc)
 WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE" 2>/dev/null || echo "unknown")
 HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE" 2>/dev/null || echo "unknown")
 
@@ -113,23 +114,52 @@ case "$TECHNIQUE" in
   "crossfade")
     echo "Creating seamless loop with crossfade technique..."
     
-    # Calculate crossfade positions with fallback
-    FADE_START=$(echo "$DURATION - $CROSSFADE_DURATION" | bc 2>/dev/null || echo "0")
-    if [ "$FADE_START" = "0" ] || [ -z "$FADE_START" ]; then
-      FADE_START=$(echo "$DURATION * 0.9" | bc 2>/dev/null || echo "0")
-    fi
+    # Use 5 seconds for the crossfade operation
+    FADE_DURATION=0.5
     
-    # Extract the beginning segment for crossfade
-    START_SEGMENT="$TEMP_DIR/start.mp4"
-    ffmpeg -y -i "$INPUT_FILE" -t "$CROSSFADE_DURATION" -c copy "$START_SEGMENT"
+    # Extract total duration of the video
+    TOTAL_DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE")
     
-    # Create a crossfade between the original and the start segment
-    # This is a two-step process to avoid infinite loops
-    CROSSFADE_SEGMENT="$TEMP_DIR/crossfade.mp4"
-    ffmpeg -y -i "$INPUT_FILE" -i "$START_SEGMENT" -filter_complex \
-      "[0:v][1:v]xfade=transition=fade:duration=$CROSSFADE_DURATION:offset=$FADE_START" \
-      -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p \
-      "$OUTPUT_FILE" || create_simple_loop
+    # Extract framerate for consistency
+    VIDEO_FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE" | bc || echo "30")
+    
+    echo "Video duration: $TOTAL_DURATION seconds"
+    echo "Video framerate: $VIDEO_FPS fps"
+    echo "Crossfade duration: $FADE_DURATION seconds"
+    
+    # Let's use a different approach with separate files instead of complex filtergraph
+    echo "Creating loop in multiple steps..."
+    
+    # Step 1: Extract first 5 seconds for the intro
+    INTRO_CLIP="$TEMP_DIR/intro.mp4"
+    echo "Extracting intro clip..."
+    ffmpeg -y -i "$INPUT_FILE" -t $FADE_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS "$INTRO_CLIP"
+    
+    # Step 2: Create the end part where we'll add the crossfade
+    END_CLIP="$TEMP_DIR/end.mp4"
+    END_START=$(echo "$TOTAL_DURATION - $FADE_DURATION" | bc)
+    echo "Extracting end clip starting at $END_START seconds..."
+    ffmpeg -y -i "$INPUT_FILE" -ss $END_START -c:v libx264 -preset fast -r $VIDEO_FPS "$END_CLIP"
+    
+    # Step 3: Create the main part (without the first 5 seconds)
+    MAIN_CLIP="$TEMP_DIR/main.mp4"
+    echo "Extracting main clip..."
+    ffmpeg -y -i "$INPUT_FILE" -ss $FADE_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS "$MAIN_CLIP"
+    
+    # Step 4: Crossfade end and intro
+    CROSSFADE_CLIP="$TEMP_DIR/crossfade.mp4"
+    echo "Creating crossfade between end and intro..."
+    ffmpeg -y -i "$END_CLIP" -i "$INTRO_CLIP" -filter_complex "
+    [0:v]format=yuv420p,fps=$VIDEO_FPS[v0];
+    [1:v]format=yuv420p,fps=$VIDEO_FPS[v1];
+    [v0][v1]xfade=transition=fade:duration=$FADE_DURATION:offset=0
+    " -c:v libx264 -preset fast -r $VIDEO_FPS "$CROSSFADE_CLIP"
+    
+    # Step 5: Concatenate main part with crossfade
+    echo "Combining main clip with crossfade segment..."
+    ffmpeg -y -i "$MAIN_CLIP" -i "$CROSSFADE_CLIP" -filter_complex "
+    [0:v][1:v]concat=n=2:v=1:a=0
+    " -c:v libx264 -preset fast -pix_fmt yuv420p "$OUTPUT_FILE"
     ;;
     
   "reverse"|*)
