@@ -18,7 +18,7 @@ const app = express();
 const upload = multer({ dest: "tmp/uploads" });
 
 // Valid looping techniques
-const VALID_TECHNIQUES = ["crossfade", "pingpong", "blend", "reverse"];
+const VALID_TECHNIQUES = ["crossfade", "reverse"];
 
 app.post(
   "/api/loop",

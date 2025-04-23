@@ -4,10 +4,8 @@ import styles from "./LoopMakerUploader.module.css";
 
 // Available loop techniques
 const TECHNIQUES = [
+  { value: "reverse", label: "Reverse (play forward then reversed)" },
   { value: "crossfade", label: "Crossfade (smooth transition)" },
-  { value: "pingpong", label: "Ping-pong (forward & reverse)" },
-  { value: "blend", label: "Frame blending (experimental)" },
-  { value: "reverse", label: "Simple reverse (most reliable)" },
 ];
 
 export const LoopMakerUploader = () => {

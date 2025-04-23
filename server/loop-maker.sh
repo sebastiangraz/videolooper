@@ -1,14 +1,12 @@
 #!/bin/bash
 # ------------------------------------------------------------------------------
-# Video Loop Maker - v2.4
+# Video Loop Maker - v2.5
 # ------------------------------------------------------------------------------
-# Creates a seamless loop from a video file using various techniques
+# Creates a seamless loop from a video file using two techniques
 # Usage: ./loop-maker.sh <input_video> [technique]
 # Techniques:
-#   crossfade - Crossfade between end and beginning (default)
-#   pingpong  - Play forward then backward 
-#   blend     - Blend frames at loop points
-#   reverse   - Simple reversed loop
+#   crossfade - Crossfade between end and beginning
+#   reverse   - Simple reversed loop (default, most reliable)
 # ------------------------------------------------------------------------------
 
 set -e # Exit on error
@@ -40,7 +38,7 @@ echo "Current directory: $(pwd)"
 
 # --- Default parameters ---
 INPUT_FILE="$1"
-TECHNIQUE="${2:-reverse}" # Use reverse as fallback - most reliable
+TECHNIQUE="${2:-reverse}" # Use reverse as default - most reliable
 CROSSFADE_DURATION=0.5    # Shorter crossfade for better results
 TEMP_DIR=$(dirname "$INPUT_FILE")/tmp_loop_$(date +%s)
 OUTPUT_FILE="${INPUT_FILE}_loop.mp4"
@@ -49,7 +47,7 @@ OUTPUT_FILE="${INPUT_FILE}_loop.mp4"
 if [ $# -lt 1 ]; then
     echo "Error: No input file specified"
     echo "Usage: $0 <input_video> [technique]"
-    echo "Available techniques: crossfade, pingpong, blend, reverse"
+    echo "Available techniques: crossfade, reverse"
     exit 1
 fi
 
@@ -130,36 +128,6 @@ case "$TECHNIQUE" in
     CROSSFADE_SEGMENT="$TEMP_DIR/crossfade.mp4"
     ffmpeg -y -i "$INPUT_FILE" -i "$START_SEGMENT" -filter_complex \
       "[0:v][1:v]xfade=transition=fade:duration=$CROSSFADE_DURATION:offset=$FADE_START" \
-      -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p \
-      "$OUTPUT_FILE" || create_simple_loop
-    ;;
-    
-  "pingpong")
-    echo "Creating ping-pong loop..."
-    # Create reversed clip
-    REVERSE_FILE="$TEMP_DIR/reverse.mp4"
-    if ! ffmpeg -y -i "$INPUT_FILE" -vf "reverse" -c:v libx264 -preset fast "$REVERSE_FILE"; then
-      echo "Failed to create reverse clip, using fallback"
-      create_simple_loop
-      exit 0
-    fi
-    
-    # Concatenate the clips
-    ffmpeg -y -i "$INPUT_FILE" -i "$REVERSE_FILE" -filter_complex \
-      "[0:v][1:v]concat=n=2:v=1:a=0" \
-      -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p \
-      "$OUTPUT_FILE" || create_simple_loop
-    ;;
-    
-  "blend")
-    echo "Creating frame blended loop..."
-    # Extract the beginning segment for blending
-    START_SEGMENT="$TEMP_DIR/start.mp4"
-    ffmpeg -y -i "$INPUT_FILE" -t 1 -c copy "$START_SEGMENT"
-    
-    # Create a concatenated video with frame blending at the transition
-    ffmpeg -y -i "$INPUT_FILE" -i "$START_SEGMENT" -filter_complex \
-      "[0:v][1:v]concat=n=2:v=1:a=0,tblend=all_mode=average:frames=10" \
       -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p \
       "$OUTPUT_FILE" || create_simple_loop
     ;;
