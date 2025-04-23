@@ -1,6 +1,6 @@
 #!/bin/bash
 # ------------------------------------------------------------------------------
-# Video Loop Maker - v2.2
+# Video Loop Maker - v2.4
 # ------------------------------------------------------------------------------
 # Creates a seamless loop from a video file using various techniques
 # Usage: ./loop-maker.sh <input_video> [technique]
@@ -121,14 +121,15 @@ case "$TECHNIQUE" in
       FADE_START=$(echo "$DURATION * 0.9" | bc 2>/dev/null || echo "0")
     fi
     
-    # Create the loop with crossfade
-    ffmpeg -y -i "$INPUT_FILE" -filter_complex \
-      "[0:v]split[v1][v2];
-       [v1]trim=0:$DURATION,setpts=PTS-STARTPTS[main];
-       [v2]trim=$FADE_START:$DURATION,setpts=PTS-STARTPTS[fadeout];
-       [v2]trim=0:$CROSSFADE_DURATION,setpts=PTS-STARTPTS[fadein];
-       [fadeout][fadein]blend=all_expr='A*(1-T)+B*T'[blended];
-       [main][blended]overlay" \
+    # Extract the beginning segment for crossfade
+    START_SEGMENT="$TEMP_DIR/start.mp4"
+    ffmpeg -y -i "$INPUT_FILE" -t "$CROSSFADE_DURATION" -c copy "$START_SEGMENT"
+    
+    # Create a crossfade between the original and the start segment
+    # This is a two-step process to avoid infinite loops
+    CROSSFADE_SEGMENT="$TEMP_DIR/crossfade.mp4"
+    ffmpeg -y -i "$INPUT_FILE" -i "$START_SEGMENT" -filter_complex \
+      "[0:v][1:v]xfade=transition=fade:duration=$CROSSFADE_DURATION:offset=$FADE_START" \
       -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p \
       "$OUTPUT_FILE" || create_simple_loop
     ;;
@@ -152,8 +153,13 @@ case "$TECHNIQUE" in
     
   "blend")
     echo "Creating frame blended loop..."
-    ffmpeg -y -i "$INPUT_FILE" -filter_complex \
-      "[0:v]tblend=all_mode=average,framestep=2" \
+    # Extract the beginning segment for blending
+    START_SEGMENT="$TEMP_DIR/start.mp4"
+    ffmpeg -y -i "$INPUT_FILE" -t 1 -c copy "$START_SEGMENT"
+    
+    # Create a concatenated video with frame blending at the transition
+    ffmpeg -y -i "$INPUT_FILE" -i "$START_SEGMENT" -filter_complex \
+      "[0:v][1:v]concat=n=2:v=1:a=0,tblend=all_mode=average:frames=10" \
       -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p \
       "$OUTPUT_FILE" || create_simple_loop
     ;;

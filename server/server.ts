@@ -17,11 +17,20 @@ fsSync.mkdirSync("tmp/uploads", { recursive: true });
 const app = express();
 const upload = multer({ dest: "tmp/uploads" });
 
+// Valid looping techniques
+const VALID_TECHNIQUES = ["crossfade", "pingpong", "blend", "reverse"];
+
 app.post(
   "/api/loop",
   upload.single("video"),
   async (req: Request, res: Response) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    // Get and validate the technique parameter
+    const technique =
+      req.body.technique && VALID_TECHNIQUES.includes(req.body.technique)
+        ? req.body.technique
+        : "reverse"; // Default to reverse if invalid
 
     const tmpIn = req.file.path; // tmp/uploads/<id>
     const outId = nanoid(8);
@@ -29,6 +38,8 @@ app.post(
 
     try {
       console.log("Processing video:", tmpIn);
+      console.log("Using technique:", technique);
+
       // ── run the Bash wrapper ───────────────────────────────────────────────
       const scriptPath = path.resolve(__dirname, "loop-maker.sh");
       console.log("Script path:", scriptPath);
@@ -36,7 +47,7 @@ app.post(
       await new Promise<void>((resolve, reject) => {
         execFile(
           scriptPath,
-          [tmpIn],
+          [tmpIn, technique], // Pass technique as second argument
           { shell: true },
           (err: Error | null, stdout: string, stderr: string) => {
             if (stdout) console.log("Script output:", stdout);

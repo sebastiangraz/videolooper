@@ -2,13 +2,26 @@ import React from "react";
 import { useState, ChangeEvent } from "react";
 import styles from "./LoopMakerUploader.module.css";
 
+// Available loop techniques
+const TECHNIQUES = [
+  { value: "crossfade", label: "Crossfade (smooth transition)" },
+  { value: "pingpong", label: "Ping-pong (forward & reverse)" },
+  { value: "blend", label: "Frame blending (experimental)" },
+  { value: "reverse", label: "Simple reverse (most reliable)" },
+];
+
 export const LoopMakerUploader = () => {
   const [file, setFile] = useState<File | null>(null);
   const [status, setMsg] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [technique, setTechnique] = useState<string>("reverse");
 
   const pick = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) setFile(e.target.files[0]);
+  };
+
+  const handleTechniqueChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setTechnique(e.target.value);
   };
 
   const submit = async () => {
@@ -18,6 +31,7 @@ export const LoopMakerUploader = () => {
 
     const form = new FormData();
     form.append("video", file);
+    form.append("technique", technique);
 
     try {
       const res = await fetch("/api/loop", { method: "POST", body: form });
@@ -35,7 +49,7 @@ export const LoopMakerUploader = () => {
       });
       a.click();
       URL.revokeObjectURL(url);
-      setMsg("✅ Done – file downloaded");
+      setMsg(`✅ Done – ${technique} loop downloaded`);
     } catch (err: unknown) {
       console.error(err);
       setMsg("❌ " + (err as Error).message);
@@ -53,6 +67,26 @@ export const LoopMakerUploader = () => {
         onChange={pick}
         className={styles.fileInput}
       />
+
+      <div className={styles.formGroup}>
+        <label htmlFor="technique" className={styles.label}>
+          Looping Technique
+        </label>
+        <select
+          id="technique"
+          value={technique}
+          onChange={handleTechniqueChange}
+          className={styles.select}
+          disabled={busy}
+        >
+          {TECHNIQUES.map((tech) => (
+            <option key={tech.value} value={tech.value}>
+              {tech.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <button
         onClick={submit}
         disabled={!file || busy}
