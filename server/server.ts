@@ -40,6 +40,15 @@ app.post(
       console.log("Processing video:", tmpIn);
       console.log("Using technique:", technique);
 
+      // Get fade duration and start second parameters (for crossfade technique)
+      const fadeDuration = req.body.fade_duration || "0.5";
+      const startSecond = req.body.start_second || "0";
+
+      if (technique === "crossfade") {
+        console.log("Fade duration:", fadeDuration, "seconds");
+        console.log("Start second:", startSecond, "seconds");
+      }
+
       // ── run the Bash wrapper ───────────────────────────────────────────────
       const scriptPath = path.resolve(__dirname, "loop-maker.sh");
       console.log("Script path:", scriptPath);
@@ -47,7 +56,7 @@ app.post(
       await new Promise<void>((resolve, reject) => {
         execFile(
           scriptPath,
-          [tmpIn, technique], // Pass technique as second argument
+          [tmpIn, technique, fadeDuration, startSecond], // Pass all parameters
           { shell: true },
           (err: Error | null, stdout: string, stderr: string) => {
             if (stdout) console.log("Script output:", stdout);

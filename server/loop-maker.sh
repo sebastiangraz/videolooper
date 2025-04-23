@@ -3,10 +3,14 @@
 # Video Loop Maker - v2.5
 # ------------------------------------------------------------------------------
 # Creates a seamless loop from a video file using two techniques
-# Usage: ./loop-maker.sh <input_video> [technique]
+# Usage: ./loop-maker.sh <input_video> [technique] [fade_duration] [start_second]
 # Techniques:
 #   crossfade - Crossfade between end and beginning
 #   reverse   - Simple reversed loop (default, most reliable)
+# Fade Duration:
+#   Optional parameter for crossfade duration in seconds (default: 0.5)
+# Start Second:
+#   Optional parameter for which second to start the video at (default: 0)
 # ------------------------------------------------------------------------------
 
 set -e # Exit on error
@@ -39,15 +43,18 @@ echo "Current directory: $(pwd)"
 # --- Default parameters ---
 INPUT_FILE="$1"
 TECHNIQUE="${2:-reverse}" # Use reverse as default - most reliable
-CROSSFADE_DURATION=0.5    # Shorter crossfade for better results
+FADE_DURATION="${3:-0.5}" # Use provided fade duration or default to 0.5 seconds
+START_SECOND="${4:-0}"   # Use provided start second or default to 0
 TEMP_DIR=$(dirname "$INPUT_FILE")/tmp_loop_$(date +%s)
 OUTPUT_FILE="${INPUT_FILE}_loop.mp4"
 
 # --- Validate input ---
 if [ $# -lt 1 ]; then
     echo "Error: No input file specified"
-    echo "Usage: $0 <input_video> [technique]"
+    echo "Usage: $0 <input_video> [technique] [fade_duration] [start_second]"
     echo "Available techniques: crossfade, reverse"
+    echo "Fade duration: Optional parameter in seconds (default: 0.5)"
+    echo "Start second: Optional parameter for which second to start at (default: 0)"
     exit 1
 fi
 
@@ -114,8 +121,9 @@ case "$TECHNIQUE" in
   "crossfade")
     echo "Creating seamless loop with crossfade technique..."
     
-    # Use 5 seconds for the crossfade operation
-    FADE_DURATION=0.5
+    # Use user-provided fade duration (or default)
+    echo "Using fade duration: $FADE_DURATION seconds"
+    echo "Starting from: $START_SECOND seconds"
     
     # Extract total duration of the video
     TOTAL_DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE")
@@ -125,28 +133,61 @@ case "$TECHNIQUE" in
     
     echo "Video duration: $TOTAL_DURATION seconds"
     echo "Video framerate: $VIDEO_FPS fps"
-    echo "Crossfade duration: $FADE_DURATION seconds"
     
     # Let's use a different approach with separate files instead of complex filtergraph
     echo "Creating loop in multiple steps..."
     
-    # Step 1: Extract first 5 seconds for the intro
+    # Calculate clip segments
+    # If START_SECOND is 0, use original approach
+    # Otherwise, we need to reorganize the video to start at START_SECOND
+    
+    # Step 1: Create two segments of the video - before and after the start second
+    BEFORE_START="$TEMP_DIR/before_start.mp4"
+    AFTER_START="$TEMP_DIR/after_start.mp4"
+    
+    if [ "$START_SECOND" != "0" ]; then
+      echo "Splitting video at start point: $START_SECOND seconds"
+      # Extract portion from 0 to START_SECOND
+      ffmpeg -y -i "$INPUT_FILE" -ss 0 -to "$START_SECOND" -c:v libx264 -preset fast -r $VIDEO_FPS "$BEFORE_START"
+      
+      # Extract portion from START_SECOND to end
+      ffmpeg -y -i "$INPUT_FILE" -ss "$START_SECOND" -c:v libx264 -preset fast -r $VIDEO_FPS "$AFTER_START"
+      
+      # Create a temp file that has AFTER_START followed by BEFORE_START
+      REORDERED="$TEMP_DIR/reordered.mp4"
+      ffmpeg -y -i "$AFTER_START" -i "$BEFORE_START" -filter_complex "[0:v][1:v]concat=n=2:v=1:a=0" -c:v libx264 -preset fast "$REORDERED"
+      
+      # Now use this reordered video for the rest of the process
+      WORKING_FILE="$REORDERED"
+    else
+      # If no reordering needed, just use original file
+      WORKING_FILE="$INPUT_FILE"
+    fi
+    
+    # Get duration of working file
+    if [ "$START_SECOND" != "0" ]; then
+      # If we're using a reordered file, we need to recalculate the duration
+      TOTAL_DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$WORKING_FILE")
+      echo "Reordered video duration: $TOTAL_DURATION seconds"
+    fi
+    
+    # Step 2: Extract first section for the intro clip
     INTRO_CLIP="$TEMP_DIR/intro.mp4"
     echo "Extracting intro clip..."
-    ffmpeg -y -i "$INPUT_FILE" -t $FADE_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS "$INTRO_CLIP"
+    ffmpeg -y -i "$WORKING_FILE" -t $FADE_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS "$INTRO_CLIP"
     
-    # Step 2: Create the end part where we'll add the crossfade
+    # Step 3: Create the end part where we'll add the crossfade
     END_CLIP="$TEMP_DIR/end.mp4"
     END_START=$(echo "$TOTAL_DURATION - $FADE_DURATION" | bc)
     echo "Extracting end clip starting at $END_START seconds..."
-    ffmpeg -y -i "$INPUT_FILE" -ss $END_START -c:v libx264 -preset fast -r $VIDEO_FPS "$END_CLIP"
+    ffmpeg -y -i "$WORKING_FILE" -ss $END_START -c:v libx264 -preset fast -r $VIDEO_FPS "$END_CLIP"
     
-    # Step 3: Create the main part (without the first 5 seconds)
+    # Step 4: Create the main part (without the first portion)
     MAIN_CLIP="$TEMP_DIR/main.mp4"
     echo "Extracting main clip..."
-    ffmpeg -y -i "$INPUT_FILE" -ss $FADE_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS "$MAIN_CLIP"
+    ffmpeg -y -i "$WORKING_FILE" -ss $FADE_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS "$MAIN_CLIP"
     
-    # Step 4: Crossfade end and intro
+    # Step 5: Crossfade end and intro
     CROSSFADE_CLIP="$TEMP_DIR/crossfade.mp4"
     echo "Creating crossfade between end and intro..."
     ffmpeg -y -i "$END_CLIP" -i "$INTRO_CLIP" -filter_complex "
@@ -155,7 +196,7 @@ case "$TECHNIQUE" in
     [v0][v1]xfade=transition=fade:duration=$FADE_DURATION:offset=0
     " -c:v libx264 -preset fast -r $VIDEO_FPS "$CROSSFADE_CLIP"
     
-    # Step 5: Concatenate main part with crossfade
+    # Step 6: Concatenate main part with crossfade
     echo "Combining main clip with crossfade segment..."
     ffmpeg -y -i "$MAIN_CLIP" -i "$CROSSFADE_CLIP" -filter_complex "
     [0:v][1:v]concat=n=2:v=1:a=0

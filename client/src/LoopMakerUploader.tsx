@@ -13,13 +13,37 @@ export const LoopMakerUploader = () => {
   const [status, setMsg] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [technique, setTechnique] = useState<string>("reverse");
+  const [fadeDuration, setFadeDuration] = useState<number>(0.5);
+  const [startSecond, setStartSecond] = useState<number>(0);
+  const [videoDuration, setVideoDuration] = useState<number>(0);
 
   const pick = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.length) setFile(e.target.files[0]);
+    if (e.target.files?.length) {
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+
+      // Get video duration when file is selected
+      if (selectedFile && selectedFile.type.startsWith("video/")) {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.onloadedmetadata = () => {
+          setVideoDuration(Math.floor(video.duration));
+        };
+        video.src = URL.createObjectURL(selectedFile);
+      }
+    }
   };
 
   const handleTechniqueChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setTechnique(e.target.value);
+  };
+
+  const handleFadeDurationChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setFadeDuration(parseFloat(e.target.value));
+  };
+
+  const handleStartSecondChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setStartSecond(parseFloat(e.target.value));
   };
 
   const submit = async () => {
@@ -30,6 +54,12 @@ export const LoopMakerUploader = () => {
     const form = new FormData();
     form.append("video", file);
     form.append("technique", technique);
+
+    // Add fade duration if using crossfade technique
+    if (technique === "crossfade") {
+      form.append("fade_duration", fadeDuration.toString());
+      form.append("start_second", startSecond.toString());
+    }
 
     try {
       const res = await fetch("/api/loop", { method: "POST", body: form });
@@ -84,6 +114,49 @@ export const LoopMakerUploader = () => {
           ))}
         </select>
       </div>
+
+      {technique === "crossfade" && (
+        <>
+          <div className={styles.formGroup}>
+            <label htmlFor="fadeDuration" className={styles.label}>
+              Fade Duration (seconds)
+            </label>
+            <input
+              id="fadeDuration"
+              type="number"
+              min="0.1"
+              max="5"
+              step="0.1"
+              value={fadeDuration}
+              onChange={handleFadeDurationChange}
+              className={styles.input}
+              disabled={busy}
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="startSecond" className={styles.label}>
+              Start Second (for thumbnail/social media)
+            </label>
+            <input
+              id="startSecond"
+              type="number"
+              min="0"
+              max={videoDuration > 0 ? videoDuration - fadeDuration : 30}
+              step="0.5"
+              value={startSecond}
+              onChange={handleStartSecondChange}
+              className={styles.input}
+              disabled={busy}
+            />
+            {videoDuration > 0 && (
+              <small className={styles.helpText}>
+                Video length: {videoDuration} seconds
+              </small>
+            )}
+          </div>
+        </>
+      )}
 
       <button
         onClick={submit}
