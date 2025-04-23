@@ -1,5 +1,6 @@
 import React from "react";
 import { useState, ChangeEvent } from "react";
+import styles from "./LoopMakerUploader.module.css";
 
 export const LoopMakerUploader = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -44,22 +45,22 @@ export const LoopMakerUploader = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 max-w-sm mx-auto">
+    <div className={styles.container}>
       <input
         aria-label="choose video"
         type="file"
         accept="video/*"
         onChange={pick}
-        className="file:mr-4 file:px-4 file:py-2 file:rounded-xl file:bg-gray-100"
+        className={styles.fileInput}
       />
       <button
         onClick={submit}
         disabled={!file || busy}
-        className="px-4 py-2 rounded-xl shadow-md bg-black text-white disabled:opacity-40"
+        className={styles.button}
       >
         {busy ? "Working…" : "Make seamless loop"}
       </button>
-      {status && <p className="text-sm italic whitespace-pre-wrap">{status}</p>}
+      {status && <p className={styles.status}>{status}</p>}
     </div>
   );
 };
