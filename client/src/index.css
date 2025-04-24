@@ -1,19 +1,30 @@
 /* Base styles only - specific styles moved to CSS modules */
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+  font-family: monospace, menlo, monaco;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --bg: #eeeae3;
+  --bg-1: color-mix(in srgb, var(--bg), #fff 20%);
+  --bg-2: color-mix(in srgb, var(--bg), #fff 40%);
+  --fg: #4d3c20;
+  --border: color-mix(in srgb, var(--fg) 20%, transparent);
+  --width: 32em;
 }
 
 html,
 body {
   height: 100%;
   width: 100%;
+  background-color: var(--bg);
+  color: var(--fg);
+  text-transform: uppercase;
 }
 
 * {
   box-sizing: border-box;
+  accent-color: var(--fg);
 }

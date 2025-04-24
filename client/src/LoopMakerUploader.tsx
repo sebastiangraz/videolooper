@@ -77,10 +77,10 @@ export const LoopMakerUploader = () => {
       });
       a.click();
       URL.revokeObjectURL(url);
-      setMsg(`✅ Done – ${technique} loop downloaded`);
+      setMsg(`Done – ${technique} loop downloaded`);
     } catch (err: unknown) {
       console.error(err);
-      setMsg("❌ " + (err as Error).message);
+      setMsg((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -149,21 +149,21 @@ export const LoopMakerUploader = () => {
               className={styles.input}
               disabled={busy}
             />
-            {videoDuration > 0 && (
-              <small className={styles.helpText}>
-                Video length: {videoDuration} seconds
-              </small>
-            )}
           </div>
         </>
       )}
 
+      {videoDuration > 0 && (
+        <small className={styles.label}>
+          Video length: {videoDuration} seconds
+        </small>
+      )}
       <button
         onClick={submit}
         disabled={!file || busy}
         className={styles.button}
       >
-        {busy ? "Working…" : "Make seamless loop"}
+        {busy ? "Working …" : "Loop"}
       </button>
       {status && <p className={styles.status}>{status}</p>}
     </div>
