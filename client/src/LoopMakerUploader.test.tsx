@@ -1,8 +1,7 @@
-import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LoopMakerUploader } from "./LoopMakerUploader";
-import { vi } from "vitest";
+
 import { it, expect, describe } from "vitest";
 import "@testing-library/jest-dom";
 

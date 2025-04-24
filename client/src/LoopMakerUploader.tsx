@@ -1,4 +1,3 @@
-import React from "react";
 import { useState, ChangeEvent } from "react";
 import styles from "./LoopMakerUploader.module.css";
 
