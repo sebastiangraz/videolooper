@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "buildCommand": "node client/vercel-build.js",
+  "installCommand": "npm install",
+  "outputDirectory": "client/dist",
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/client/dist/$1" }
+  ],
+  "functions": {
+    "api/**/*": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
+}

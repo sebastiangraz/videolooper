@@ -3,20 +3,14 @@
   "version": "1.0.0",
   "description": "A web application for creating seamless video loops",
   "private": true,
-  "workspaces": [
-    "client",
-    "server"
-  ],
   "scripts": {
     "start:client": "cd client && npm run dev",
     "start:server": "cd server && npm run dev",
-    "dev": "concurrently \"npm run start:client\" \"npm run start:server\""
+    "dev": "concurrently \"npm run start:client\" \"npm run start:server\"",
+    "build": "cd client && npm run build",
+    "postinstall": "cd api && npm install"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.6.3",
-    "@types/react": "^19.1.2",
-    "@types/react-dom": "^19.1.2",
-    "concurrently": "^8.2.2",
-    "typescript": "^5.8.3"
+    "concurrently": "^8.2.2"
   }
 }
