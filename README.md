@@ -1,6 +1,78 @@
 # Video Looper
 
-A web application that creates seamless video loops from uploaded videos.
+A web application for creating seamless video loops with ffmpeg.
+
+## Features
+
+- Create perfect video loops using two techniques:
+  - Reverse looping (play forward, then backward)
+  - Crossfade looping (smooth transition between end and beginning)
+- Customize fade duration and starting point
+- Works entirely in the browser - no need to install anything
+
+## Deployment on Vercel
+
+This application is designed to be deployed on Vercel. It uses:
+
+- React frontend (Vite)
+- Serverless API functions with ffmpeg-static for video processing
+
+### Configuration
+
+The deployment is configured in `vercel.json`:
+
+```json
+{
+  "version": 2,
+  "buildCommand": "cd client && npm install && npm run build",
+  "outputDirectory": "client/dist",
+  "installCommand": "npm install",
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/client/dist/$1" }
+  ],
+  "functions": {
+    "api/**/*": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
+}
+```
+
+## Development
+
+To run locally:
+
+```
+npm install
+npm run dev
+```
+
+This will start both the client (Vite React app) and server (Express API).
+
+## Building
+
+To build the client:
+
+```
+npm run build
+```
+
+The build output will be in `client/dist/`.
+
+## API
+
+The API uses ffmpeg for video processing and offers two looping techniques:
+
+- `reverse`: Creates a loop by playing the video forward, then in reverse
+- `crossfade`: Creates a loop by crossfading between the end and beginning
+
+## Limitations
+
+- Maximum video size is limited to what Vercel serverless functions can handle
+- Processing time is limited to 60 seconds
 
 ## Project Structure
 
@@ -16,13 +88,6 @@ video-looper/
 │  └─ server.test.ts     # Server tests
 └─ package.json          # Root package with workspaces
 ```
-
-## Features
-
-- Upload video files via browser
-- Process videos into seamless loops using ffmpeg
-- Download processed videos automatically
-- Error handling for all steps of the process
 
 ## Setup
 
