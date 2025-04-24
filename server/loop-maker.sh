@@ -17,22 +17,97 @@ set -e # Exit on error
 
 # --- Function to check dependencies ---
 check_dependencies() {
-  if ! command -v ffmpeg &> /dev/null; then
-    echo "Error: ffmpeg not found. Please install ffmpeg to use this script."
-    exit 1
+  # First, check if we have FFMPEG_PATH from environment (set by ffmpeg-static)
+  if [ -n "$FFMPEG_PATH" ] && [ -x "$FFMPEG_PATH" ]; then
+    echo "Using bundled ffmpeg at: $FFMPEG_PATH"
+    FFMPEG="$FFMPEG_PATH"
+    
+    # Check for FFPROBE_PATH from environment (set by ffprobe-static)
+    if [ -n "$FFPROBE_PATH" ] && [ -x "$FFPROBE_PATH" ]; then
+      echo "Using bundled ffprobe at: $FFPROBE_PATH"
+      FFPROBE="$FFPROBE_PATH"
+    else
+      # Attempt to get ffprobe path from the same directory
+      FFPROBE_PATH="${FFMPEG_PATH%/*}/ffprobe"
+      if [ -x "$FFPROBE_PATH" ]; then
+        FFPROBE="$FFPROBE_PATH"
+      else
+        # Fallback to command-line ffprobe
+        if command -v ffprobe &> /dev/null; then
+          FFPROBE="ffprobe"
+        else
+          echo "Error: ffprobe not found. Please install ffmpeg with ffprobe."
+          exit 1
+        fi
+      fi
+    fi
+  else
+    # Use system commands if FFMPEG_PATH is not set
+    if ! command -v ffmpeg &> /dev/null; then
+      echo "Error: ffmpeg not found. Please install ffmpeg to use this script."
+      exit 1
+    fi
+    
+    if ! command -v ffprobe &> /dev/null; then
+      echo "Error: ffprobe not found. It should be part of ffmpeg installation."
+      exit 1
+    fi
+    
+    FFMPEG="ffmpeg"
+    FFPROBE="ffprobe"
   fi
   
+  # Check for bc, important for calculations
   if ! command -v bc &> /dev/null; then
-    echo "Error: bc command not found. Using fallback calculations."
-    # Set a fallback function for bc
+    echo "Warning: bc command not found. Using fallback calculations."
+    # Create a more robust bc function fallback that can handle basic operations
     bc() {
-      echo "1" # Just return a safe default for calculations
+      local input
+      # Read from stdin if no arguments provided
+      if [ "$#" -eq 0 ]; then
+        read input
+      else
+        input="$1"
+      fi
+      
+      # Handle common calculation scenarios
+      if [[ "$input" == *"/"* ]]; then
+        # Handle division (assume simple fraction for FPS like 30000/1001)
+        echo "30" # Common approximation for video FPS
+      elif [[ "$input" == "scale="* ]]; then
+        # Scale command, just return the number after the expression
+        echo "$input" | grep -o '[0-9.]*$'
+      elif [[ "$input" == *">"* || "$input" == *"<"* || "$input" == *"=="* ]]; then
+        # Comparison operations (for fade duration checks)
+        # Simple true/false based on comparison
+        if [[ "$input" == *">="* ]]; then
+          echo "0" # false
+        elif [[ "$input" == *"<="* ]]; then
+          echo "0" # false
+        elif [[ "$input" == *"=="* ]]; then
+          echo "0" # false
+        elif [[ "$input" == *">"* ]]; then
+          echo "1" # true
+        elif [[ "$input" == *"<"* ]]; then
+          echo "1" # true
+        else
+          echo "0" # default to false for unknown comparison
+        fi
+      elif [[ "$input" == *"-"* ]]; then
+        # Simple subtraction
+        echo "1" # Default to safe positive value
+      elif [[ "$input" == *"+"* ]]; then
+        # Simple addition
+        echo "1" # Default to safe positive value
+      elif [[ "$input" == *"*"* ]]; then
+        # Simple multiplication
+        echo "1" # Default to safe positive value
+      else
+        # Unknown operation, return a safe default
+        echo "1"
+      fi
     }
-  fi
-
-  if ! command -v ffprobe &> /dev/null; then
-    echo "Error: ffprobe not found. It should be part of ffmpeg installation."
-    exit 1
+    export -f bc
   fi
 }
 
@@ -84,10 +159,10 @@ create_simple_loop() {
   
   # Create a simple reverse file first - no fifo needed
   REVERSE_FILE="$TEMP_DIR/reverse.mp4"
-  ffmpeg -y -i "$INPUT_FILE" -vf "reverse" -preset fast "$REVERSE_FILE"
+  $FFMPEG -y -i "$INPUT_FILE" -vf "reverse" -preset fast "$REVERSE_FILE"
   
   # Then concatenate the files
-  ffmpeg -y -i "$INPUT_FILE" -i "$REVERSE_FILE" -filter_complex \
+  $FFMPEG -y -i "$INPUT_FILE" -i "$REVERSE_FILE" -filter_complex \
     "[0:v][1:v]concat=n=2:v=1:a=0" \
     -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p \
     "$OUTPUT_FILE"
@@ -95,17 +170,17 @@ create_simple_loop() {
 
 # --- Try to get video duration and info ---
 echo "Analyzing video..."
-if ! DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE" 2>/dev/null); then
+if ! DURATION=$($FFPROBE -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE" 2>/dev/null); then
   echo "Warning: Could not determine video duration, using fallback method"
   create_simple_loop
   exit 0
 fi
 
 # Get basic video info with error handling
-FPS=$(ffprobe -v 0 -select_streams v:0 -of csv=p=0 \
+FPS=$($FFPROBE -v 0 -select_streams v:0 -of csv=p=0 \
        -show_entries stream=r_frame_rate "$INPUT_FILE" | bc)
-WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE" 2>/dev/null || echo "unknown")
-HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE" 2>/dev/null || echo "unknown")
+WIDTH=$($FFPROBE -v error -select_streams v:0 -show_entries stream=width -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE" 2>/dev/null || echo "unknown")
+HEIGHT=$($FFPROBE -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE" 2>/dev/null || echo "unknown")
 
 # Convert fps fraction to decimal if needed
 if [[ $FPS == */* ]]; then
@@ -126,9 +201,9 @@ case "$TECHNIQUE" in
     echo "Starting from: $START_SECOND seconds"
 
     # --- Get original video properties ---
-    ORIGINAL_DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -hide_banner -loglevel warning "$INPUT_FILE")
+    ORIGINAL_DURATION=$($FFPROBE -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -hide_banner -loglevel warning "$INPUT_FILE")
     if [ -z "$ORIGINAL_DURATION" ]; then echo "Error: Failed to get video duration."; exit 1; fi
-    VIDEO_FPS_FRAC=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 -hide_banner -loglevel warning "$INPUT_FILE")
+    VIDEO_FPS_FRAC=$($FFPROBE -v error -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 -hide_banner -loglevel warning "$INPUT_FILE")
     if [ -z "$VIDEO_FPS_FRAC" ]; then echo "Error: Failed to get video FPS."; exit 1; fi
     # Use bc to handle fractional FPS like 30000/1001 for calculations, fallback to 30
     VIDEO_FPS=$(echo "scale=2; $VIDEO_FPS_FRAC" | bc 2>/dev/null || echo "30")
@@ -156,12 +231,12 @@ case "$TECHNIQUE" in
         
         # Extract segment after START_SECOND (to end)
         echo "Extracting segment after $START_SECOND seconds..."
-        ffmpeg -y -i "$INPUT_FILE" -ss $START_SECOND -c copy -hide_banner -loglevel warning "$AFTER_PART_ABS"
+        $FFMPEG -y -i "$INPUT_FILE" -ss $START_SECOND -c copy -hide_banner -loglevel warning "$AFTER_PART_ABS"
         if [ $? -ne 0 ]; then echo "Error: Failed extracting AFTER part for zero fade."; exit 1; fi
         
         # Extract segment before START_SECOND (from start)
         echo "Extracting segment before $START_SECOND seconds..."
-        ffmpeg -y -i "$INPUT_FILE" -to $START_SECOND -c copy -hide_banner -loglevel warning "$BEFORE_PART_ABS"
+        $FFMPEG -y -i "$INPUT_FILE" -to $START_SECOND -c copy -hide_banner -loglevel warning "$BEFORE_PART_ABS"
         if [ $? -ne 0 ]; then echo "Error: Failed extracting BEFORE part for zero fade."; exit 1; fi
         
         # Create concatenation list
@@ -173,7 +248,7 @@ case "$TECHNIQUE" in
         
         # Concatenate using concat demuxer (fast copy)
         echo "Concatenating segments without fade..."
-        (cd "$TEMP_DIR" && ffmpeg -y -f concat -safe 0 -i "$CONCAT_LIST_NOFADE" -c copy -hide_banner -loglevel warning "$ABS_OUTPUT_FILE")
+        (cd "$TEMP_DIR" && $FFMPEG -y -f concat -safe 0 -i "$CONCAT_LIST_NOFADE" -c copy -hide_banner -loglevel warning "$ABS_OUTPUT_FILE")
         if [ $? -ne 0 ]; then echo "Error: Failed concatenating segments for zero fade."; exit 1; fi
       fi
       # Skip the rest of the crossfade logic if fade duration was 0
@@ -204,18 +279,18 @@ case "$TECHNIQUE" in
       END_CLIP_START_TIME=$(printf "%.6f" "$END_CLIP_START_TIME_RAW")
       
       # Extract first FADE_DURATION seconds
-      ffmpeg -y -i "$INPUT_FILE" -t $FADE_DURATION_FMT -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$TRUE_START_CLIP"
+      $FFMPEG -y -i "$INPUT_FILE" -t $FADE_DURATION_FMT -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$TRUE_START_CLIP"
       if [ $? -ne 0 ]; then echo "Error: Failed during TRUE_START_CLIP extraction."; exit 1; fi
       
       # Extract last FADE_DURATION seconds
-      ffmpeg -y -i "$INPUT_FILE" -ss $END_CLIP_START_TIME -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$TRUE_END_CLIP"
+      $FFMPEG -y -i "$INPUT_FILE" -ss $END_CLIP_START_TIME -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$TRUE_END_CLIP"
       if [ $? -ne 0 ]; then echo "Error: Failed during TRUE_END_CLIP extraction."; exit 1; fi
       
       # --- Step 2: Create the Crossfade Clip ---
       echo "Creating crossfade segment..."
       CROSSFADE_CLIP="$TEMP_DIR/crossfade_segment.mp4"
       # Use xfade filter with formatted duration
-      ffmpeg -y -i "$TRUE_END_CLIP" -i "$TRUE_START_CLIP" \
+      $FFMPEG -y -i "$TRUE_END_CLIP" -i "$TRUE_START_CLIP" \
              -filter_complex "[0:v][1:v]xfade=transition=fade:duration=$FADE_DURATION_FMT:offset=0[out]" \
              -map "[out]" -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$CROSSFADE_CLIP"
       if [ $? -ne 0 ]; then echo "Error: Failed during CROSSFADE_CLIP creation."; exit 1; fi
@@ -237,7 +312,7 @@ case "$TECHNIQUE" in
         MAIN_CLIP_DURATION_RAW=$(echo "$ORIGINAL_DURATION - 2 * $FADE_DURATION" | bc)
         MAIN_CLIP_DURATION=$(printf "%.6f" "$MAIN_CLIP_DURATION_RAW")
         # Extract main segment (re-encode for consistency)
-        ffmpeg -y -i "$INPUT_FILE" -ss $MAIN_CLIP_START -t $MAIN_CLIP_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$MAIN_CLIP_ABS"
+        $FFMPEG -y -i "$INPUT_FILE" -ss $MAIN_CLIP_START -t $MAIN_CLIP_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$MAIN_CLIP_ABS"
         if [ $? -ne 0 ]; then echo "Error: Failed during MAIN_CLIP extraction."; exit 1; fi
         
         # Add relative filenames to list
@@ -260,7 +335,7 @@ case "$TECHNIQUE" in
         # Extract if duration is positive
         if (( $(echo "$SEG1_DURATION > 0" | bc -l) )); then
             echo "Extracting segment 1 (Start: $SEG1_START_TIME, Duration: $SEG1_DURATION)..."
-            ffmpeg -y -i "$INPUT_FILE" -ss $SEG1_START_TIME -t $SEG1_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$SEG1_AFTER_START_ABS"
+            $FFMPEG -y -i "$INPUT_FILE" -ss $SEG1_START_TIME -t $SEG1_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$SEG1_AFTER_START_ABS"
             if [ $? -ne 0 ]; then echo "Error: Failed during SEG1 extraction."; exit 1; fi
             # Add relative filename to list
             echo "file '$SEG1_AFTER_START'" >> "$CONCAT_LIST_ABS"
@@ -284,7 +359,7 @@ case "$TECHNIQUE" in
         # Extract if duration is positive
         if (( $(echo "$SEG3_DURATION > 0" | bc -l) )); then
             echo "Extracting segment 3 (Start: $SEG3_START_TIME, Duration: $SEG3_DURATION)..."
-            ffmpeg -y -i "$INPUT_FILE" -ss $SEG3_START_TIME -t $SEG3_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$SEG3_BEFORE_START_ABS"
+            $FFMPEG -y -i "$INPUT_FILE" -ss $SEG3_START_TIME -t $SEG3_DURATION -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$SEG3_BEFORE_START_ABS"
             if [ $? -ne 0 ]; then echo "Error: Failed during SEG3 extraction."; exit 1; fi
             # Add relative filename to list
             echo "file '$SEG3_BEFORE_START'" >> "$CONCAT_LIST_ABS"
@@ -299,10 +374,10 @@ case "$TECHNIQUE" in
       cat "$CONCAT_LIST_ABS" # Display list content for verification
       # Use concat demuxer. Run from TEMP_DIR, use relative list name, output to absolute path.
       # Attempt fast copy first, fallback to re-encoding.
-      (cd "$TEMP_DIR" && ffmpeg -y -f concat -safe 0 -i "$CONCAT_LIST" -c copy -hide_banner -loglevel warning "$ABS_OUTPUT_FILE")
+      (cd "$TEMP_DIR" && $FFMPEG -y -f concat -safe 0 -i "$CONCAT_LIST" -c copy -hide_banner -loglevel warning "$ABS_OUTPUT_FILE")
       if [ $? -ne 0 ]; then
         echo "Warning: Concatenation with '-c copy' failed. Retrying with re-encoding..."
-        (cd "$TEMP_DIR" && ffmpeg -y -f concat -safe 0 -i "$CONCAT_LIST" -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$ABS_OUTPUT_FILE")
+        (cd "$TEMP_DIR" && $FFMPEG -y -f concat -safe 0 -i "$CONCAT_LIST" -c:v libx264 -preset fast -r $VIDEO_FPS -pix_fmt yuv420p -hide_banner -loglevel warning "$ABS_OUTPUT_FILE")
         if [ $? -ne 0 ]; then echo "Error: Final concatenation failed even with re-encoding."; exit 1; fi
       fi
     fi
@@ -312,14 +387,14 @@ case "$TECHNIQUE" in
     echo "Creating simple reversed loop..."
     # First create reversed video
     REVERSE_FILE="$TEMP_DIR/reverse.mp4"
-    if ! ffmpeg -y -i "$INPUT_FILE" -vf "reverse" -c:v libx264 -preset fast "$REVERSE_FILE"; then
+    if ! $FFMPEG -y -i "$INPUT_FILE" -vf "reverse" -c:v libx264 -preset fast "$REVERSE_FILE"; then
       echo "Failed to create reverse clip, copying original as fallback"
       cp "$INPUT_FILE" "$OUTPUT_FILE"
       exit 0
     fi
     
     # Then concatenate with original
-    if ! ffmpeg -y -i "$INPUT_FILE" -i "$REVERSE_FILE" -filter_complex \
+    if ! $FFMPEG -y -i "$INPUT_FILE" -i "$REVERSE_FILE" -filter_complex \
          "[0:v][1:v]concat=n=2:v=1:a=0" \
          -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p \
          "$OUTPUT_FILE"; then

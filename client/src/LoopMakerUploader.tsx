@@ -64,9 +64,18 @@ export const LoopMakerUploader = () => {
     try {
       const res = await fetch("/api/loop", { method: "POST", body: form });
       if (!res.ok) {
-        // backend now returns JSON on error
-        const { error } = await res.json();
-        throw new Error(error ?? `HTTP ${res.status}`);
+        // Try to parse JSON response for error message
+        try {
+          const errorData = await res.json();
+          throw new Error(errorData.error || `HTTP Error ${res.status}`);
+        } catch (jsonError) {
+          // If parsing JSON fails, use status text or a generic message
+          throw new Error(
+            `Server error (${res.status}): ${
+              res.statusText || "Unable to process video"
+            }`
+          );
+        }
       }
 
       const blob = await res.blob();
