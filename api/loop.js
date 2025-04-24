@@ -459,5 +459,10 @@ app.post("/api/loop", upload.single("video"), async (req, res) => {
   }
 });
 
-// Export for Vercel serverless function
+// Export for Express usage
 module.exports = app;
+
+// Export helper functions for serverless usage
+module.exports.runFfmpeg = runFfmpeg;
+module.exports.createReverseLoop = createReverseLoop;
+module.exports.createCrossfadeLoop = createCrossfadeLoop;
