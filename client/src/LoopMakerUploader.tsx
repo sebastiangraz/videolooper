@@ -62,7 +62,13 @@ export const LoopMakerUploader = () => {
     }
 
     try {
-      const res = await fetch("/api/loop", { method: "POST", body: form });
+      // Use absolute URL for production or relative URL for development
+      const apiUrl =
+        process.env.NODE_ENV === "production"
+          ? `${window.location.origin}/api/loop`
+          : "/api/loop";
+
+      const res = await fetch(apiUrl, { method: "POST", body: form });
       if (!res.ok) {
         // Try to parse JSON response for error message
         try {
