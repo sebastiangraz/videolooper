@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run vercel-build",
   "outputDirectory": "client/dist",
+  "installCommand": "npm install",
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/client/dist/$1" }
   ],
   "functions": {
