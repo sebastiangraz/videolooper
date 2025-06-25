@@ -2,7 +2,6 @@
 // CommonJS keeps setup simple; swap to ESM if your project already uses it.
 const express = require("express");
 const multer = require("multer");
-const { execFile } = require("child_process");
 const path = require("path");
 const fs = require("fs/promises");
 const fsSync = require("fs");
@@ -10,6 +9,7 @@ const { nanoid } = require("nanoid");
 // Add ffmpeg and ffprobe static imports to use bundled binaries
 const ffmpegPath = require("ffmpeg-static");
 const ffprobePath = require("ffprobe-static").path;
+const VideoProcessor = require("./video-processor");
 
 // Import types
 import { Request, Response } from "express";
@@ -42,8 +42,7 @@ app.post(
         : "reverse"; // Default to reverse if invalid
 
     const tmpIn = req.file.path; // tmp/uploads/<id>
-    const outId = nanoid(8);
-    const tmpOut = `${tmpIn}_loop.mp4`; // produced by loop‑maker.sh
+    const tmpOut = `${tmpIn}_loop.mp4`; // produced by video processor
 
     try {
       console.log("Processing video:", tmpIn);
@@ -60,53 +59,12 @@ app.post(
         console.log("Start second:", startSecond, "seconds");
       }
 
-      // ── run the Bash wrapper ───────────────────────────────────────────────
-      const scriptPath = path.resolve(__dirname, "loop-maker.sh");
-      console.log("Script path:", scriptPath);
+      // ── Create video processor and process the video ─────────────────────────
+      const processor = new VideoProcessor(ffmpegPath, ffprobePath);
 
-      // Verify the script exists and is executable
-      try {
-        const scriptStats = await fs.stat(scriptPath);
-        console.log("Script exists:", scriptStats.isFile());
+      console.log("Processing video with cross-platform video processor");
 
-        // Make script executable if it's not already
-        await fs.chmod(scriptPath, 0o755).catch((err: Error) => {
-          console.warn("Could not change script permissions:", err.message);
-        });
-      } catch (err: any) {
-        console.error("Error checking script:", err);
-        throw new Error(`Script not found or not accessible: ${scriptPath}`);
-      }
-
-      await new Promise<void>((resolve, reject) => {
-        // Set FFMPEG_PATH and FFPROBE_PATH environment variables for the subprocess
-        const env = {
-          ...process.env,
-          FFMPEG_PATH: ffmpegPath,
-          FFPROBE_PATH: ffprobePath,
-        };
-
-        console.log("Executing script with environment:", {
-          FFMPEG_PATH: ffmpegPath,
-          FFPROBE_PATH: ffprobePath,
-        });
-
-        execFile(
-          scriptPath,
-          [tmpIn, technique, fadeDuration, startSecond], // Pass all parameters
-          { shell: true, env }, // Pass the updated environment
-          (err: Error | null, stdout: string, stderr: string) => {
-            if (stdout) console.log("Script output:", stdout);
-            if (stderr) console.error("Script error:", stderr);
-            if (err) {
-              console.error("Execution error:", err);
-              reject(new Error(`FFMPEG error: ${err.message}`));
-            } else {
-              resolve();
-            }
-          }
-        );
-      });
+      await processor.createLoop(tmpIn, technique, fadeDuration, startSecond);
 
       // validate output exists
       try {
