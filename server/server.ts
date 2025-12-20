@@ -53,10 +53,17 @@ app.post(
       // Get fade duration and start second parameters (for crossfade technique)
       const fadeDuration = req.body.fade_duration || "0.5";
       const startSecond = req.body.start_second || "0";
+      const lossless =
+        req.body.lossless === "true" || req.body.lossless === true;
 
       if (technique === "crossfade") {
         console.log("Fade duration:", fadeDuration, "seconds");
         console.log("Start second:", startSecond, "seconds");
+      }
+      if (lossless) {
+        console.log(
+          "Lossless mode enabled - preserving original quality and color profile"
+        );
       }
 
       // ── Create video processor and process the video ─────────────────────────
@@ -64,7 +71,13 @@ app.post(
 
       console.log("Processing video with cross-platform video processor");
 
-      await processor.createLoop(tmpIn, technique, fadeDuration, startSecond);
+      await processor.createLoop(
+        tmpIn,
+        technique,
+        fadeDuration,
+        startSecond,
+        lossless
+      );
 
       // validate output exists
       try {

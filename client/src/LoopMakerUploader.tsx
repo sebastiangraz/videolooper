@@ -16,6 +16,7 @@ export const LoopMakerUploader = () => {
   const [fadeDuration, setFadeDuration] = useState<number>(0.5);
   const [startSecond, setStartSecond] = useState<number>(0);
   const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [lossless, setLossless] = useState<boolean>(false);
 
   const pick = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
@@ -46,6 +47,10 @@ export const LoopMakerUploader = () => {
     setStartSecond(parseFloat(e.target.value));
   };
 
+  const handleLosslessChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setLossless(e.target.checked);
+  };
+
   const submit = async () => {
     if (!file) return;
     setBusy(true);
@@ -59,6 +64,11 @@ export const LoopMakerUploader = () => {
     if (technique === "crossfade") {
       form.append("fade_duration", fadeDuration.toString());
       form.append("start_second", startSecond.toString());
+    }
+
+    // Add lossless flag
+    if (lossless) {
+      form.append("lossless", "true");
     }
 
     try {
@@ -161,6 +171,20 @@ export const LoopMakerUploader = () => {
           </div>
         </>
       )}
+
+      <div className={styles.formGroup}>
+        <label htmlFor="lossless" className={styles.label}>
+          <input
+            id="lossless"
+            type="checkbox"
+            checked={lossless}
+            onChange={handleLosslessChange}
+            disabled={busy}
+            style={{ marginRight: "0.5em" }}
+          />
+          Lossless (preserves original quality and color profile)
+        </label>
+      </div>
 
       {videoDuration > 0 && (
         <small className={styles.label}>

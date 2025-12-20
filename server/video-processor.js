@@ -16,7 +16,8 @@ class VideoProcessor {
     inputFile,
     technique = "reverse",
     fadeDuration = "0.5",
-    startSecond = "0"
+    startSecond = "0",
+    lossless = false
   ) {
     const outputFile = `${inputFile}_loop.mp4`;
 
@@ -33,11 +34,12 @@ class VideoProcessor {
           inputFile,
           outputFile,
           fadeDuration,
-          startSecond
+          startSecond,
+          lossless
         );
       } else {
         // Default to reverse technique
-        await this.createReverseLoop(inputFile, outputFile);
+        await this.createReverseLoop(inputFile, outputFile, lossless);
       }
 
       // Verify output file was created
@@ -51,8 +53,13 @@ class VideoProcessor {
     }
   }
 
-  async createReverseLoop(inputFile, outputFile) {
+  async createReverseLoop(inputFile, outputFile, lossless = false) {
     console.log("Creating simple reversed loop...");
+    if (lossless) {
+      console.log(
+        "Using lossless encoding to preserve quality and color profile"
+      );
+    }
 
     const tempDir = path.join(
       path.dirname(inputFile),
@@ -63,6 +70,16 @@ class VideoProcessor {
     try {
       const reverseFile = path.join(tempDir, "reverse.mp4");
 
+      // Get video codec and color info for lossless mode
+      let codecArgs = [];
+      if (lossless) {
+        const videoCodec = await this.getVideoCodec(inputFile);
+        const colorInfo = await this.getColorInfo(inputFile);
+        codecArgs = this.getLosslessCodecArgs(videoCodec, colorInfo);
+      } else {
+        codecArgs = ["-c:v", "libx264", "-preset", "fast"];
+      }
+
       // Create reversed video
       await this.runFFmpeg([
         "-y",
@@ -70,48 +87,79 @@ class VideoProcessor {
         inputFile,
         "-vf",
         "reverse",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
+        ...codecArgs,
         reverseFile,
       ]);
 
       // Concatenate original and reversed
-      await this.runFFmpeg([
-        "-y",
-        "-i",
-        inputFile,
-        "-i",
-        reverseFile,
-        "-filter_complex",
-        "[0:v][1:v]concat=n=2:v=1:a=0",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-crf",
-        "22",
-        "-pix_fmt",
-        "yuv420p",
-        outputFile,
-      ]);
+      if (lossless) {
+        // For lossless, use the same codec args
+        await this.runFFmpeg([
+          "-y",
+          "-i",
+          inputFile,
+          "-i",
+          reverseFile,
+          "-filter_complex",
+          "[0:v][1:v]concat=n=2:v=1:a=0",
+          ...codecArgs,
+          outputFile,
+        ]);
+      } else {
+        await this.runFFmpeg([
+          "-y",
+          "-i",
+          inputFile,
+          "-i",
+          reverseFile,
+          "-filter_complex",
+          "[0:v][1:v]concat=n=2:v=1:a=0",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "fast",
+          "-crf",
+          "22",
+          "-pix_fmt",
+          "yuv420p",
+          outputFile,
+        ]);
+      }
     } finally {
       // Clean up temp directory
       await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
   }
 
-  async createCrossfadeLoop(inputFile, outputFile, fadeDuration, startSecond) {
+  async createCrossfadeLoop(
+    inputFile,
+    outputFile,
+    fadeDuration,
+    startSecond,
+    lossless = false
+  ) {
     console.log("Creating seamless loop with crossfade technique...");
     console.log(`Using fade duration: ${fadeDuration} seconds`);
     console.log(`Starting from: ${startSecond} seconds`);
+    if (lossless) {
+      console.log(
+        "Using lossless encoding to preserve quality and color profile"
+      );
+    }
 
     // Get video info
     const duration = await this.getVideoDuration(inputFile);
     const fps = await this.getVideoFPS(inputFile);
 
     console.log(`Video duration: ${duration} seconds, FPS: ${fps}`);
+
+    // Get codec and color info for lossless mode
+    let losslessCodecArgs = [];
+    if (lossless) {
+      const videoCodec = await this.getVideoCodec(inputFile);
+      const colorInfo = await this.getColorInfo(inputFile);
+      losslessCodecArgs = this.getLosslessCodecArgs(videoCodec, colorInfo);
+    }
 
     // Validate fade duration
     if (parseFloat(fadeDuration) >= duration / 2) {
@@ -133,7 +181,8 @@ class VideoProcessor {
           inputFile,
           outputFile,
           startSecond,
-          duration
+          duration,
+          lossless
         );
       }
       return;
@@ -154,20 +203,27 @@ class VideoProcessor {
       // Extract start and end segments
       const endStartTime = duration - parseFloat(fadeDuration);
 
+      // Build codec args for start/end clips
+      const clipCodecArgs = lossless
+        ? [...losslessCodecArgs, "-r", fps.toString()]
+        : [
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-r",
+            fps.toString(),
+            "-pix_fmt",
+            "yuv420p",
+          ];
+
       await this.runFFmpeg([
         "-y",
         "-i",
         inputFile,
         "-t",
         fadeDuration,
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-r",
-        fps.toString(),
-        "-pix_fmt",
-        "yuv420p",
+        ...clipCodecArgs,
         startClip,
       ]);
 
@@ -177,18 +233,24 @@ class VideoProcessor {
         inputFile,
         "-ss",
         endStartTime.toString(),
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-r",
-        fps.toString(),
-        "-pix_fmt",
-        "yuv420p",
+        ...clipCodecArgs,
         endClip,
       ]);
 
       // Create crossfade
+      const crossfadeCodecArgs = lossless
+        ? [...losslessCodecArgs, "-r", fps.toString()]
+        : [
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-r",
+            fps.toString(),
+            "-pix_fmt",
+            "yuv420p",
+          ];
+
       await this.runFFmpeg([
         "-y",
         "-i",
@@ -199,14 +261,7 @@ class VideoProcessor {
         `[0:v][1:v]xfade=transition=fade:duration=${fadeDuration}:offset=0[out]`,
         "-map",
         "[out]",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-r",
-        fps.toString(),
-        "-pix_fmt",
-        "yuv420p",
+        ...crossfadeCodecArgs,
         crossfadeClip,
       ]);
 
@@ -225,21 +280,16 @@ class VideoProcessor {
           mainStart.toString(),
           "-t",
           mainDuration.toString(),
-          "-c:v",
-          "libx264",
-          "-preset",
-          "fast",
-          "-r",
-          fps.toString(),
-          "-pix_fmt",
-          "yuv420p",
+          ...clipCodecArgs,
           mainClip,
         ]);
 
         await this.concatenateVideos(
           [mainClip, crossfadeClip],
           outputFile,
-          tempDir
+          tempDir,
+          lossless,
+          losslessCodecArgs
         );
       } else {
         // Custom start: segment after start + crossfade + segment before start
@@ -260,14 +310,7 @@ class VideoProcessor {
             startSecond,
             "-t",
             seg1Duration.toString(),
-            "-c:v",
-            "libx264",
-            "-preset",
-            "fast",
-            "-r",
-            fps.toString(),
-            "-pix_fmt",
-            "yuv420p",
+            ...clipCodecArgs,
             seg1,
           ]);
           segments.push(seg1);
@@ -284,20 +327,19 @@ class VideoProcessor {
             fadeDuration,
             "-t",
             seg3Duration.toString(),
-            "-c:v",
-            "libx264",
-            "-preset",
-            "fast",
-            "-r",
-            fps.toString(),
-            "-pix_fmt",
-            "yuv420p",
+            ...clipCodecArgs,
             seg3,
           ]);
           segments.push(seg3);
         }
 
-        await this.concatenateVideos(segments, outputFile, tempDir);
+        await this.concatenateVideos(
+          segments,
+          outputFile,
+          tempDir,
+          lossless,
+          losslessCodecArgs
+        );
       }
     } finally {
       // Clean up temp directory
@@ -305,7 +347,13 @@ class VideoProcessor {
     }
   }
 
-  async reorderSegments(inputFile, outputFile, startSecond, duration) {
+  async reorderSegments(
+    inputFile,
+    outputFile,
+    startSecond,
+    duration,
+    lossless = false
+  ) {
     const tempDir = path.join(
       path.dirname(inputFile),
       `tmp_loop_${Date.now()}`
@@ -340,17 +388,33 @@ class VideoProcessor {
         beforePart,
       ]);
 
+      // Get codec and color info for lossless mode if needed
+      let losslessCodecArgs = [];
+      if (lossless) {
+        const videoCodec = await this.getVideoCodec(inputFile);
+        const colorInfo = await this.getColorInfo(inputFile);
+        losslessCodecArgs = this.getLosslessCodecArgs(videoCodec, colorInfo);
+      }
+
       await this.concatenateVideos(
         [afterPart, beforePart],
         outputFile,
-        tempDir
+        tempDir,
+        lossless,
+        losslessCodecArgs
       );
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
   }
 
-  async concatenateVideos(videoFiles, outputFile, tempDir) {
+  async concatenateVideos(
+    videoFiles,
+    outputFile,
+    tempDir,
+    lossless = false,
+    losslessCodecArgs = []
+  ) {
     const listFile = path.join(tempDir, "concat_list.txt");
     const listContent = videoFiles
       .map((f) => `file '${path.basename(f)}'`)
@@ -361,45 +425,55 @@ class VideoProcessor {
     console.log(`Created concat list at: ${listFile}`);
     console.log(`List content:\n${listContent}`);
 
-    // Try fast copy first, fallback to re-encoding
-    try {
-      await this.runFFmpeg(
-        [
-          "-y",
-          "-f",
-          "concat",
-          "-safe",
-          "0",
-          "-i",
-          path.basename(listFile), // Use relative path within temp directory
-          "-c",
-          "copy",
-          path.resolve(outputFile), // Use absolute path for output
-        ],
-        { cwd: tempDir }
-      );
-    } catch (error) {
-      console.log("Fast concatenation failed, trying with re-encoding...");
-      await this.runFFmpeg(
-        [
-          "-y",
-          "-f",
-          "concat",
-          "-safe",
-          "0",
-          "-i",
-          path.basename(listFile), // Use relative path within temp directory
-          "-c:v",
-          "libx264",
-          "-preset",
-          "fast",
-          "-pix_fmt",
-          "yuv420p",
-          path.resolve(outputFile), // Use absolute path for output
-        ],
-        { cwd: tempDir }
-      );
+    // If lossless is enabled, we need to re-encode to ensure hvc1 tag for HEVC
+    // Skip fast copy to guarantee we get the correct tag
+    const shouldSkipFastCopy = lossless && losslessCodecArgs.length > 0;
+
+    // Try fast copy first (unless we need to re-encode for tag), fallback to re-encoding
+    if (!shouldSkipFastCopy) {
+      try {
+        await this.runFFmpeg(
+          [
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            path.basename(listFile), // Use relative path within temp directory
+            "-c",
+            "copy",
+            path.resolve(outputFile), // Use absolute path for output
+          ],
+          { cwd: tempDir }
+        );
+        return; // Success with fast copy
+      } catch (error) {
+        console.log("Fast concatenation failed, trying with re-encoding...");
+      }
+    } else {
+      console.log("Skipping fast copy to ensure correct HEVC tag (hvc1)...");
     }
+
+    // Re-encode with appropriate codec args
+    const reencodeArgs = lossless
+      ? losslessCodecArgs
+      : ["-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p"];
+
+    await this.runFFmpeg(
+      [
+        "-y",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        path.basename(listFile), // Use relative path within temp directory
+        ...reencodeArgs,
+        path.resolve(outputFile), // Use absolute path for output
+      ],
+      { cwd: tempDir }
+    );
   }
 
   async getVideoDuration(inputFile) {
@@ -434,6 +508,103 @@ class VideoProcessor {
       return num / den;
     }
     return parseFloat(fpsStr) || 30; // fallback to 30 fps
+  }
+
+  async getVideoCodec(inputFile) {
+    try {
+      const output = await this.runFFprobe([
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=codec_name",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        inputFile,
+      ]);
+      return output.trim();
+    } catch (error) {
+      console.warn("Could not get video codec:", error);
+      return null;
+    }
+  }
+
+  async getColorInfo(inputFile) {
+    try {
+      // Query all stream info to get color metadata
+      const output = await this.runFFprobe([
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=color_primaries,color_transfer,colorspace,color_range,pix_fmt",
+        "-of",
+        "json",
+        inputFile,
+      ]);
+      const info = JSON.parse(output);
+      const stream = info.streams?.[0];
+      return {
+        colorPrimaries: stream?.color_primaries || null,
+        colorTrc: stream?.color_transfer || null, // color_transfer is the correct field name
+        colorSpace: stream?.colorspace || null,
+        colorRange: stream?.color_range || null,
+        pixFmt: stream?.pix_fmt || null,
+      };
+    } catch (error) {
+      console.warn("Could not get color info:", error);
+      return {
+        colorPrimaries: null,
+        colorTrc: null,
+        colorSpace: null,
+        colorRange: null,
+        pixFmt: null,
+      };
+    }
+  }
+
+  getLosslessCodecArgs(videoCodec, colorInfo) {
+    let codecArgs = [];
+
+    // Use lossless encoding with original codec or H.264 lossless
+    if (videoCodec && videoCodec.includes("hevc")) {
+      // Use hvc1 tag for macOS compatibility (instead of default hev1)
+      codecArgs = [
+        "-c:v",
+        "libx265",
+        "-crf",
+        "0",
+        "-preset",
+        "slow",
+        "-tag:v",
+        "hvc1",
+      ];
+    } else {
+      codecArgs = ["-c:v", "libx264", "-crf", "0", "-preset", "slow"];
+    }
+
+    // Preserve color metadata
+    if (colorInfo.colorPrimaries) {
+      codecArgs.push("-color_primaries", colorInfo.colorPrimaries);
+    }
+    if (colorInfo.colorTrc) {
+      codecArgs.push("-color_trc", colorInfo.colorTrc);
+    }
+    if (colorInfo.colorSpace) {
+      codecArgs.push("-colorspace", colorInfo.colorSpace);
+    }
+    if (colorInfo.colorRange) {
+      codecArgs.push("-color_range", colorInfo.colorRange);
+    }
+    // Preserve pixel format if it's not yuv420p (for HDR)
+    if (colorInfo.pixFmt && colorInfo.pixFmt !== "yuv420p") {
+      codecArgs.push("-pix_fmt", colorInfo.pixFmt);
+    }
+    codecArgs.push("-map_metadata", "0");
+
+    return codecArgs;
   }
 
   runFFmpeg(args, options = {}) {
