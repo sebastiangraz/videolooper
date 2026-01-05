@@ -75,7 +75,9 @@ class VideoProcessor {
       if (lossless) {
         const videoCodec = await this.getVideoCodec(inputFile);
         const colorInfo = await this.getColorInfo(inputFile);
+        console.log("Color info detected:", JSON.stringify(colorInfo, null, 2));
         codecArgs = this.getLosslessCodecArgs(videoCodec, colorInfo);
+        console.log("Lossless codec args:", codecArgs.join(" "));
       } else {
         codecArgs = ["-c:v", "libx264", "-preset", "fast"];
       }
@@ -158,7 +160,9 @@ class VideoProcessor {
     if (lossless) {
       const videoCodec = await this.getVideoCodec(inputFile);
       const colorInfo = await this.getColorInfo(inputFile);
+      console.log("Color info detected:", JSON.stringify(colorInfo, null, 2));
       losslessCodecArgs = this.getLosslessCodecArgs(videoCodec, colorInfo);
+      console.log("Lossless codec args:", losslessCodecArgs.join(" "));
     }
 
     // Validate fade duration
@@ -393,7 +397,9 @@ class VideoProcessor {
       if (lossless) {
         const videoCodec = await this.getVideoCodec(inputFile);
         const colorInfo = await this.getColorInfo(inputFile);
+        console.log("Color info detected:", JSON.stringify(colorInfo, null, 2));
         losslessCodecArgs = this.getLosslessCodecArgs(videoCodec, colorInfo);
+        console.log("Lossless codec args:", losslessCodecArgs.join(" "));
       }
 
       await this.concatenateVideos(
@@ -539,19 +545,59 @@ class VideoProcessor {
         "-select_streams",
         "v:0",
         "-show_entries",
-        "stream=color_primaries,color_transfer,colorspace,color_range,pix_fmt",
+        "stream=color_primaries,color_transfer,colorspace,color_range,pix_fmt,bit_depth",
         "-of",
         "json",
         inputFile,
       ]);
       const info = JSON.parse(output);
       const stream = info.streams?.[0];
+
+      // Also try to get HDR metadata from format tags
+      let hdrMetadata = {};
+      try {
+        const formatOutput = await this.runFFprobe([
+          "-v",
+          "error",
+          "-show_entries",
+          "format_tags",
+          "-of",
+          "json",
+          inputFile,
+        ]);
+        const formatInfo = JSON.parse(formatOutput);
+        const tags = formatInfo.format?.tags || {};
+        hdrMetadata = {
+          masterDisplay:
+            tags.master_display || tags.MasteringDisplayColorPrimaries || null,
+          maxCll: tags.max_cll || tags.MaxCLL || null,
+          maxFall: tags.max_fall || tags.MaxFALL || null,
+        };
+      } catch (e) {
+        // HDR metadata might not be present, that's okay
+        console.log("No HDR metadata found in format tags");
+      }
+
+      // Infer colorspace if missing but we have HDR indicators
+      let colorSpace = stream?.colorspace || null;
+      if (
+        !colorSpace &&
+        stream?.color_primaries === "bt2020" &&
+        stream?.color_transfer === "smpte2084"
+      ) {
+        // HDR10 with BT.2020 should use bt2020nc (non-constant luminance)
+        colorSpace = "bt2020nc";
+        console.log("Inferred colorspace bt2020nc for HDR10 video");
+      }
+
       return {
         colorPrimaries: stream?.color_primaries || null,
-        colorTrc: stream?.color_transfer || null, // color_transfer is the correct field name
-        colorSpace: stream?.colorspace || null,
+        colorTrc: stream?.color_transfer || null,
+        colorSpace: colorSpace,
         colorRange: stream?.color_range || null,
         pixFmt: stream?.pix_fmt || null,
+        bitDepth: stream?.bit_depth || null,
+        ...hdrMetadata,
       };
     } catch (error) {
       console.warn("Could not get color info:", error);
@@ -561,6 +607,10 @@ class VideoProcessor {
         colorSpace: null,
         colorRange: null,
         pixFmt: null,
+        bitDepth: null,
+        masterDisplay: null,
+        maxCll: null,
+        maxFall: null,
       };
     }
   }
@@ -581,11 +631,66 @@ class VideoProcessor {
         "-tag:v",
         "hvc1",
       ];
+
+      // Build x265 parameters for HDR preservation
+      const x265Params = [];
+
+      // Preserve color metadata in x265
+      if (colorInfo.colorPrimaries) {
+        x265Params.push(`colorprim=${colorInfo.colorPrimaries}`);
+      }
+      if (colorInfo.colorTrc) {
+        x265Params.push(`transfer=${colorInfo.colorTrc}`);
+      }
+      if (colorInfo.colorSpace) {
+        x265Params.push(`colormatrix=${colorInfo.colorSpace}`);
+      } else if (
+        colorInfo.colorPrimaries === "bt2020" &&
+        colorInfo.colorTrc === "smpte2084"
+      ) {
+        // Ensure bt2020nc is set for HDR10 even if not detected
+        x265Params.push(`colormatrix=bt2020nc`);
+      }
+      if (colorInfo.colorRange) {
+        x265Params.push(
+          `range=${colorInfo.colorRange === "tv" ? "limited" : "full"}`
+        );
+      }
+
+      // Preserve HDR metadata
+      if (colorInfo.masterDisplay) {
+        x265Params.push(`master-display=${colorInfo.masterDisplay}`);
+      }
+      if (colorInfo.maxCll) {
+        x265Params.push(`max-cll=${colorInfo.maxCll}`);
+      }
+      if (colorInfo.maxFall) {
+        // max-fall is part of max-cll in format "max_cll,max_fall"
+        // If we have both, combine them
+        if (colorInfo.maxCll) {
+          x265Params[
+            x265Params.length - 1
+          ] = `max-cll=${colorInfo.maxCll},${colorInfo.maxFall}`;
+        } else {
+          // If we only have maxFall, we still need maxCll, so skip this
+          console.warn("maxFall found without maxCll, skipping");
+        }
+      }
+
+      // Preserve bit depth if it's 10-bit
+      if (colorInfo.bitDepth && parseInt(colorInfo.bitDepth) === 10) {
+        x265Params.push("input-depth=10");
+        x265Params.push("output-depth=10");
+      }
+
+      if (x265Params.length > 0) {
+        codecArgs.push("-x265-params", x265Params.join(":"));
+      }
     } else {
       codecArgs = ["-c:v", "libx264", "-crf", "0", "-preset", "slow"];
     }
 
-    // Preserve color metadata
+    // Preserve color metadata (FFmpeg level)
     if (colorInfo.colorPrimaries) {
       codecArgs.push("-color_primaries", colorInfo.colorPrimaries);
     }
@@ -594,15 +699,31 @@ class VideoProcessor {
     }
     if (colorInfo.colorSpace) {
       codecArgs.push("-colorspace", colorInfo.colorSpace);
+    } else if (
+      colorInfo.colorPrimaries === "bt2020" &&
+      colorInfo.colorTrc === "smpte2084"
+    ) {
+      // Ensure bt2020nc is set for HDR10 even if not detected
+      codecArgs.push("-colorspace", "bt2020nc");
     }
     if (colorInfo.colorRange) {
       codecArgs.push("-color_range", colorInfo.colorRange);
     }
-    // Preserve pixel format if it's not yuv420p (for HDR)
-    if (colorInfo.pixFmt && colorInfo.pixFmt !== "yuv420p") {
+
+    // Preserve pixel format - important for HDR (e.g., yuv420p10le for 10-bit HDR)
+    // Always preserve the original pixel format if it exists
+    if (colorInfo.pixFmt) {
       codecArgs.push("-pix_fmt", colorInfo.pixFmt);
+    } else if (!videoCodec?.includes("hevc")) {
+      // Only default to yuv420p for non-HEVC if no format was detected
+      codecArgs.push("-pix_fmt", "yuv420p");
     }
+
+    // Copy all metadata from input
     codecArgs.push("-map_metadata", "0");
+
+    // Also copy stream metadata
+    codecArgs.push("-map_metadata:s:v:0", "0:s:v:0");
 
     return codecArgs;
   }
