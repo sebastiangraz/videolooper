@@ -1,5 +1,5 @@
-import React from "react";
 import { useState, ChangeEvent } from "react";
+import { upload } from "@vercel/blob/client";
 import styles from "./LoopMakerUploader.module.css";
 
 // Available loop techniques
@@ -49,43 +49,56 @@ export const LoopMakerUploader = () => {
   const submit = async () => {
     if (!file) return;
     setBusy(true);
-    setMsg("Uploading and processing …");
-
-    const form = new FormData();
-    form.append("video", file);
-    form.append("technique", technique);
-
-    // Add fade duration if using crossfade technique
-    if (technique === "crossfade") {
-      form.append("fade_duration", fadeDuration.toString());
-      form.append("start_second", startSecond.toString());
-    }
 
     try {
-      const res = await fetch("/api/loop", { method: "POST", body: form });
-      if (!res.ok) {
-        // Try to parse JSON response for error message
-        try {
-          const errorData = await res.json();
-          throw new Error(errorData.error || `HTTP Error ${res.status}`);
-        } catch (jsonError) {
-          // If parsing JSON fails, use status text or a generic message
-          throw new Error(
-            `Server error (${res.status}): ${
-              res.statusText || "Unable to process video"
-            }`
-          );
-        }
-      }
+      setMsg("Uploading …");
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+        // Browsers report no type for some containers (.avi, .mkv on
+        // certain systems); fall back so the upload token isn't refused.
+        contentType: file.type || "application/octet-stream",
+      });
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      setMsg("Processing … this can take a minute");
+      const res = await fetch("/api/loop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blobUrl: blob.url,
+          technique,
+          fadeDuration: fadeDuration.toString(),
+          startSecond: startSecond.toString(),
+          filename: file.name,
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(
+          errorData?.error || `Server error (${res.status}): Unable to process video`
+        );
+      }
+      const { url } = await res.json();
+
+      setMsg("Downloading result …");
+      // Result lives on Blob storage (cross-origin), where the anchor
+      // `download` attribute is ignored — fetch to an object URL instead.
+      const fileRes = await fetch(url);
+      if (!fileRes.ok) throw new Error(`Failed to download result (${fileRes.status})`);
+      const objectUrl = URL.createObjectURL(await fileRes.blob());
       const a = Object.assign(document.createElement("a"), {
-        href: url,
+        href: objectUrl,
         download: file.name.replace(/\.[^.]+$/, "") + "_loop.mp4",
       });
       a.click();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objectUrl);
+
+      fetch("/api/loop", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      }).catch(() => {});
+
       setMsg(`Done – ${technique} loop downloaded`);
     } catch (err: unknown) {
       console.error(err);
@@ -100,7 +113,7 @@ export const LoopMakerUploader = () => {
       <input
         aria-label="choose video"
         type="file"
-        accept="video/*"
+        accept="video/*,.avi,.mkv,.mov,.webm,.m4v,.wmv,.mpg,.mpeg,.3gp,.ts"
         onChange={pick}
         className={styles.fileInput}
       />

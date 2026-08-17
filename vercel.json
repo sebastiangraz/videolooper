@@ -1,0 +1,13 @@
+{
+  "buildCommand": "npm run build --workspace client",
+  "devCommand": "npm run dev --workspace client -- --port $PORT",
+  "outputDirectory": "client/dist",
+  "functions": {
+    "api/loop.ts": {
+      "maxDuration": 300,
+      "memory": 2048,
+      "includeFiles": "node_modules/{ffmpeg-static,@ffprobe-installer}/**"
+    },
+    "api/upload.ts": { "maxDuration": 30 }
+  }
+}
