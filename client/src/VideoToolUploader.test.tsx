@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { VideoToolUploader } from "./VideoToolUploader";
 import { vi, it, expect, describe, beforeEach } from "vitest";
@@ -89,7 +89,7 @@ describe("VideoToolUploader", () => {
       blobUrl: "https://store.public.blob.vercel-storage.com/tiny-abc.mp4",
       tool: "loop",
       filename: "tiny.mp4",
-      options: { technique: "reverse", fadeDuration: 0.5, startSecond: 0 },
+      options: { technique: "crossfade", fadeDuration: 0.5, startSecond: 0 },
     });
   });
 
@@ -142,6 +142,52 @@ describe("VideoToolUploader", () => {
         "https://store.public.blob.vercel-storage.com/b.png",
       ],
       options: { frameDuration: 1, format: "gif", quality: 75 },
+    });
+  });
+
+  it("requests a speed change with the slider value", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "clip.mp4", { type: "video/mp4" });
+
+    uploadMock.mockResolvedValue({
+      url: "https://store.public.blob.vercel-storage.com/clip-abc.mp4",
+    });
+    const resultUrl = "https://store.public.blob.vercel-storage.com/results/clip_speed-xyz.mp4";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (input === "/api/process" && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({ url: resultUrl, filename: "clip_speed.mp4" }),
+          { status: 200 }
+        );
+      }
+      if (input === resultUrl) {
+        return new Response(new Blob(["video"], { type: "video/mp4" }), { status: 200 });
+      }
+      if (input === "/api/process" && init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      throw new Error(`Unexpected fetch: ${input}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<VideoToolUploader />);
+    await user.selectOptions(screen.getByLabelText(/video tool/i), "speed");
+    await user.upload(screen.getByLabelText(/choose video/i), file);
+    // userEvent has no slider support — set the range input directly
+    fireEvent.change(screen.getByLabelText(/speed/i), { target: { value: "1" } });
+    await user.click(screen.getByRole("button", { name: /change speed/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/done – clip_speed\.mp4 downloaded/i)).toBeInTheDocument()
+    );
+    const processBody = JSON.parse(
+      (fetchMock.mock.calls.find(([, init]) => init?.method === "POST")?.[1]?.body as string) ?? "{}"
+    );
+    expect(processBody).toMatchObject({
+      tool: "speed",
+      blobUrl: "https://store.public.blob.vercel-storage.com/clip-abc.mp4",
+      filename: "clip.mp4",
+      options: { speed: 1 },
     });
   });
 });

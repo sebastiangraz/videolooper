@@ -13,7 +13,7 @@ const ffprobePath: string = require("@ffprobe-installer/ffprobe").path;
 const VideoProcessor = require("./_lib/video-processor");
 
 // Mirrored in client/src/VideoToolUploader.tsx (TOOLS / TECHNIQUES / FORMATS)
-const VALID_TOOLS = ["loop", "image-sequence"];
+const VALID_TOOLS = ["loop", "image-sequence", "speed"];
 const VALID_TECHNIQUES = ["reverse", "crossfade"];
 const VALID_FORMATS = ["mp4", "gif", "avif"];
 const CONTENT_TYPES: Record<string, string> = {
@@ -137,6 +137,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
       outputName = `${base}_video.${format}`;
       contentType = CONTENT_TYPES[format];
+    } else if (tool === "speed") {
+      // Signed ratio: ±1 → 2× faster/slower, ±3 → 4×. Mirrored in
+      // client/src/VideoToolUploader.tsx.
+      const speed = clamp(options.speed, -3, 3, 0);
+      const multiplier = speed >= 0 ? 1 + speed : 1 / (1 - speed);
+
+      const inputPath = path.join(workDir, "input.mp4");
+      await downloadBlob(inputBlobUrls[0], inputPath);
+
+      outputPath = await processor.changeSpeed(inputPath, multiplier);
+      outputName = `${base}_speed.mp4`;
+      contentType = "video/mp4";
     } else {
       const technique = VALID_TECHNIQUES.includes(options.technique)
         ? options.technique

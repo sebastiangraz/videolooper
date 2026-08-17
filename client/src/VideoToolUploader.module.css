@@ -45,6 +45,9 @@ input[type="range"] {
   --thumb-size: 1em;
   /* 0 → 1 progress, set inline from the input's value */
   --ratio: 0;
+  /* Where the fill grows from: 0% for a left-anchored slider, 50% for a
+     centre-anchored one (set inline, e.g. the speed slider). */
+  --fill-origin: 0%;
   /* Offset by half a thumb so the fill edge sits under the thumb's centre
      instead of drifting at the extremes. */
   --fill: calc(
@@ -54,8 +57,10 @@ input[type="range"] {
     height: 1px;
     background: linear-gradient(
       to right,
-      var(--fg) 0 var(--fill),
-      var(--border) var(--fill) 100%
+      var(--border) 0 min(var(--fill-origin), var(--fill)),
+      var(--fg) min(var(--fill-origin), var(--fill))
+        max(var(--fill-origin), var(--fill)),
+      var(--border) max(var(--fill-origin), var(--fill)) 100%
     );
   }
   &::-webkit-slider-thumb {

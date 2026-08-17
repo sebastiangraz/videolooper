@@ -24,6 +24,16 @@ const TOOLS = [
     input: { accept: "image/*", multiple: true, pickerLabel: "choose images" },
     actionLabel: "Create video",
   },
+  {
+    value: "speed",
+    label: "Video speed",
+    input: {
+      accept: VIDEO_ACCEPT,
+      multiple: false,
+      pickerLabel: "choose video",
+    },
+    actionLabel: "Change speed",
+  },
 ];
 
 // Looping techniques for the "loop" tool. Mirrored in api/process.ts
@@ -81,12 +91,17 @@ export const VideoToolUploader = () => {
   const [frameDuration, setFrameDuration] = useState<number>(1);
   const [format, setFormat] = useState<string>("mp4");
   const [quality, setQuality] = useState<number>(75);
+  const [speed, setSpeed] = useState<number>(0);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [imageDims, setImageDims] = useState<{ w: number; h: number } | null>(
     null,
   );
 
   const currentTool = TOOLS.find((t) => t.value === tool) ?? TOOLS[0];
+
+  // Signed speed ratio → playback multiplier: ±1 → 2× faster/slower,
+  // ±3 → 4×. Mirrored in api/process.ts.
+  const speedMultiplier = speed >= 0 ? 1 + speed : 1 / (1 - speed);
 
   const pick = (e: ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? []);
@@ -154,6 +169,10 @@ export const VideoToolUploader = () => {
     setQuality(parseInt(e.target.value, 10));
   };
 
+  const handleSpeedChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setSpeed(parseFloat(e.target.value));
+  };
+
   const submit = async () => {
     if (!files.length) return;
     setBusy(true);
@@ -177,19 +196,22 @@ export const VideoToolUploader = () => {
       }
 
       setMsg("Processing …");
-      const isSequence = tool === "image-sequence";
+      const payload =
+        tool === "image-sequence"
+          ? { blobUrls, options: { frameDuration, format, quality } }
+          : tool === "speed"
+            ? { blobUrl: blobUrls[0], options: { speed } }
+            : {
+                blobUrl: blobUrls[0],
+                options: { technique, fadeDuration, startSecond },
+              };
       const res = await fetch("/api/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tool,
           filename: files[0].name,
-          ...(isSequence
-            ? { blobUrls, options: { frameDuration, format, quality } }
-            : {
-                blobUrl: blobUrls[0],
-                options: { technique, fadeDuration, startSecond },
-              }),
+          ...payload,
         }),
       });
       if (!res.ok) {
@@ -325,6 +347,39 @@ export const VideoToolUploader = () => {
               </>
             )}
           </>
+        )}
+
+        {tool === "speed" && (
+          <div className={styles.formGroup}>
+            <label htmlFor="speed" className={styles.label}>
+              Speed (
+              {speed === 0
+                ? "unchanged"
+                : speed > 0
+                  ? `${(1 + speed).toFixed(1)}× faster`
+                  : `${(1 - speed).toFixed(1)}× slower`}
+              {videoDuration > 0 &&
+                ` – ~${(videoDuration / speedMultiplier).toFixed(1)}s`}
+              )
+            </label>
+            <input
+              id="speed"
+              type="range"
+              min={-3}
+              max={3}
+              step="0.1"
+              value={speed}
+              onChange={handleSpeedChange}
+              className={styles.input}
+              disabled={busy}
+              style={
+                {
+                  "--ratio": (speed + 3) / 6,
+                  "--fill-origin": "50%",
+                } as CSSProperties
+              }
+            />
+          </div>
         )}
 
         {tool === "image-sequence" && (

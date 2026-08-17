@@ -438,6 +438,39 @@ class VideoProcessor {
     return outputFile;
   }
 
+  async changeSpeed(inputFile, multiplier) {
+    console.log(`Changing playback speed by ${multiplier}x...`);
+
+    const outputFile = `${inputFile}_speed.mp4`;
+    const fps = await this.getVideoFPS(inputFile);
+
+    // setpts rescales frame timestamps; keeping the source frame rate via
+    // -r makes speed-ups drop frames (instead of raising the output fps)
+    // and slow-downs duplicate frames. Audio is dropped like in the other
+    // tools.
+    await this.runFFmpeg([
+      "-y",
+      "-i",
+      inputFile,
+      "-vf",
+      `setpts=PTS/${multiplier}`,
+      "-r",
+      fps.toString(),
+      "-an",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "fast",
+      "-crf",
+      "22",
+      "-pix_fmt",
+      "yuv420p",
+      outputFile,
+    ]);
+
+    return outputFile;
+  }
+
   async reorderSegments(inputFile, outputFile, startSecond, duration) {
     const tempDir = path.join(
       path.dirname(inputFile),

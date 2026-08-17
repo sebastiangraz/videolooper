@@ -30,6 +30,7 @@ videotools/
 Each tool in the "Video Tool" dropdown shows its own extra options; adding a tool means one entry in `TOOLS` (client) + `VALID_TOOLS` (server) and a conditional options block in the component.
 
 - **Loop**: seamless video loop. Options: `technique` — `reverse` (plays the video forward then reversed, no further options) or `crossfade` (adds `fadeDuration` in seconds and `startSecond` to choose the first frame, for thumbnails/social media).
+- **Video speed**: speed a clip up or slow it down. Option: `speed` slider from −3 to +3 (0 = unchanged, center). The value is a signed ratio: +1 plays 2× faster (10 s → 5 s), −1 plays 2× slower (10 s → 20 s), ±3 → 4×. Audio is dropped (as in the other tools).
 - **Image sequence → video**: upload multiple images and assemble them into an animation. Options: `frameDuration` ("time per frame" in seconds, 0.02–10), output `format` (MP4 / GIF / AVIF), and `quality` (1–100 slider; maps to x264/libaom CRF, and for GIF to palette size — ≥80 also switches to per-frame palettes). The UI shows a rough estimated output size. Frame order follows the filenames (natural sort, so `img2` comes before `img10`). Mixed sizes/formats are fine — every image is scaled and padded to the first image's dimensions (capped at 1920 px on the longest side).
 
 ## Setup
