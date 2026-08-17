@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { LoopMakerUploader } from "./LoopMakerUploader";
+import { VideoToolUploader } from "./VideoToolUploader";
 import styles from "./index.module.css";
 import "./index.css";
 
@@ -30,12 +30,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <header className={styles.header}>
         <div className={styles.headerContent}>
           <Logo />
-          <h1 className={styles.title}>Seamless video looper</h1>
+          <h1 className={styles.title}>Video tools</h1>
         </div>
       </header>
 
       <main className={styles.main}>
-        <LoopMakerUploader />
+        <VideoToolUploader />
       </main>
     </div>
   </React.StrictMode>

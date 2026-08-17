@@ -3,7 +3,7 @@
   "devCommand": "npm run dev --workspace client -- --port $PORT",
   "outputDirectory": "client/dist",
   "functions": {
-    "api/loop.ts": {
+    "api/process.ts": {
       "maxDuration": 300,
       "memory": 2048,
       "includeFiles": "node_modules/{ffmpeg-static,@ffprobe-installer}/**"

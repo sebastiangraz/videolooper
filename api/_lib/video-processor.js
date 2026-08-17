@@ -3,8 +3,8 @@ const fs = require("fs").promises;
 const path = require("path");
 
 /**
- * Cross-platform video loop maker
- * Replicates the functionality of loop-maker.sh in Node.js
+ * Cross-platform video tools: seamless loops (reverse / crossfade) and
+ * image-sequence assembly (mp4 / gif / avif), all pure-Node ffmpeg.
  */
 class VideoProcessor {
   constructor(ffmpegPath, ffprobePath) {
@@ -305,6 +305,122 @@ class VideoProcessor {
       // Clean up temp directory
       await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
+  }
+
+  async createImageSequenceVideo(imagePaths, workDir, frameDuration, format) {
+    console.log(`Assembling ${imagePaths.length} images into ${format}...`);
+
+    const outputFile = path.join(workDir, `output.${format}`);
+
+    // Target frame size: first image's dimensions, capped at 1920 on the
+    // longest side (bounds gif/avif encode cost), floored to even for
+    // yuv420p/x264.
+    const probe = await this.runFFprobe([
+      "-v",
+      "error",
+      "-select_streams",
+      "v:0",
+      "-show_entries",
+      "stream=width,height",
+      "-of",
+      "csv=s=x:p=0",
+      imagePaths[0],
+    ]);
+    const [w, h] = probe.trim().split("x").map(Number);
+    if (!w || !h) {
+      throw new Error("Could not read dimensions of first image");
+    }
+    const scaleFactor = Math.min(1, 1920 / Math.max(w, h));
+    const W = Math.max(2, Math.floor((w * scaleFactor) / 2) * 2);
+    const H = Math.max(2, Math.floor((h * scaleFactor) / 2) * 2);
+
+    // Normalize every image to a uniform PNG frame (mixed formats and
+    // dimensions are the norm for user uploads; the sequence demuxer
+    // needs identical frames).
+    const framesDir = path.join(workDir, "frames");
+    await fs.mkdir(framesDir, { recursive: true });
+    for (let i = 0; i < imagePaths.length; i++) {
+      const framePath = path.join(
+        framesDir,
+        `norm_${String(i + 1).padStart(4, "0")}.png`
+      );
+      await this.runFFmpeg([
+        "-y",
+        "-i",
+        imagePaths[i],
+        "-vf",
+        `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1`,
+        "-frames:v",
+        "1",
+        framePath,
+      ]);
+    }
+
+    const framerate = (1 / frameDuration).toString();
+    const pattern = path.join(framesDir, "norm_%04d.png");
+
+    if (format === "gif") {
+      await this.runFFmpeg([
+        "-y",
+        "-framerate",
+        framerate,
+        "-i",
+        pattern,
+        "-vf",
+        "split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=sierra2_4a",
+        "-loop",
+        "0",
+        outputFile,
+      ]);
+    } else if (format === "avif") {
+      await this.runFFmpeg([
+        "-y",
+        "-framerate",
+        framerate,
+        "-i",
+        pattern,
+        "-c:v",
+        "libaom-av1",
+        "-crf",
+        "32",
+        "-b:v",
+        "0",
+        "-cpu-used",
+        "8",
+        "-row-mt",
+        "1",
+        "-threads",
+        "0",
+        "-pix_fmt",
+        "yuv420p",
+        "-f",
+        "avif",
+        outputFile,
+      ]);
+    } else {
+      // mp4: constant 30fps output (frames duplicated by the fps filter)
+      // so every player handles very low source frame rates.
+      await this.runFFmpeg([
+        "-y",
+        "-framerate",
+        framerate,
+        "-i",
+        pattern,
+        "-vf",
+        "fps=30,format=yuv420p",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "22",
+        "-movflags",
+        "+faststart",
+        outputFile,
+      ]);
+    }
+
+    return outputFile;
   }
 
   async reorderSegments(inputFile, outputFile, startSecond, duration) {
