@@ -9,18 +9,8 @@ const VIDEO_ACCEPT =
 // extra options are the conditional blocks in the JSX below.
 const TOOLS = [
   {
-    value: "reverse",
-    label: "Loop – reverse (forward then reversed)",
-    input: {
-      accept: VIDEO_ACCEPT,
-      multiple: false,
-      pickerLabel: "choose video",
-    },
-    actionLabel: "Loop",
-  },
-  {
-    value: "crossfade",
-    label: "Loop – crossfade (smooth transition)",
+    value: "loop",
+    label: "Loop",
     input: {
       accept: VIDEO_ACCEPT,
       multiple: false,
@@ -30,10 +20,17 @@ const TOOLS = [
   },
   {
     value: "image-sequence",
-    label: "Image sequence → video",
+    label: "Image sequence",
     input: { accept: "image/*", multiple: true, pickerLabel: "choose images" },
     actionLabel: "Create video",
   },
+];
+
+// Looping techniques for the "loop" tool. Mirrored in api/process.ts
+// (VALID_TECHNIQUES)
+const TECHNIQUES = [
+  { value: "crossfade", label: "Crossfade" },
+  { value: "reverse", label: "Forward & reverse" },
 ];
 
 // Mirrored in api/process.ts (VALID_FORMATS)
@@ -77,7 +74,8 @@ export const VideoToolUploader = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [status, setMsg] = useState<string>("");
   const [busy, setBusy] = useState(false);
-  const [tool, setTool] = useState<string>("reverse");
+  const [tool, setTool] = useState<string>("loop");
+  const [technique, setTechnique] = useState<string>("crossfade");
   const [fadeDuration, setFadeDuration] = useState<number>(0.5);
   const [startSecond, setStartSecond] = useState<number>(0);
   const [frameDuration, setFrameDuration] = useState<number>(1);
@@ -132,6 +130,10 @@ export const VideoToolUploader = () => {
     setImageDims(null);
   };
 
+  const handleTechniqueChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setTechnique(e.target.value);
+  };
+
   const handleFadeDurationChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFadeDuration(parseFloat(e.target.value));
   };
@@ -184,7 +186,10 @@ export const VideoToolUploader = () => {
           filename: files[0].name,
           ...(isSequence
             ? { blobUrls, options: { frameDuration, format, quality } }
-            : { blobUrl: blobUrls[0], options: { fadeDuration, startSecond } }),
+            : {
+                blobUrl: blobUrls[0],
+                options: { technique, fadeDuration, startSecond },
+              }),
         }),
       });
       if (!res.ok) {
@@ -228,17 +233,6 @@ export const VideoToolUploader = () => {
 
   return (
     <div className={styles.container}>
-      <input
-        // Remount on tool change so the browser's file display resets
-        key={tool}
-        aria-label={currentTool.input.pickerLabel}
-        type="file"
-        accept={currentTool.input.accept}
-        multiple={currentTool.input.multiple}
-        onChange={pick}
-        className={styles.fileInput}
-      />
-
       <div className={styles.formGroup}>
         <label htmlFor="tool" className={styles.label}>
           Video Tool
@@ -258,41 +252,75 @@ export const VideoToolUploader = () => {
         </select>
       </div>
 
-      {tool === "crossfade" && (
+      <input
+        // Remount on tool change so the browser's file display resets
+        key={tool}
+        aria-label={currentTool.input.pickerLabel}
+        type="file"
+        accept={currentTool.input.accept}
+        multiple={currentTool.input.multiple}
+        onChange={pick}
+        className={styles.fileInput}
+      />
+
+      {tool === "loop" && (
         <>
           <div className={styles.formGroup}>
-            <label htmlFor="fadeDuration" className={styles.label}>
-              Fade Duration (seconds)
+            <label htmlFor="technique" className={styles.label}>
+              Looping Technique
             </label>
-            <input
-              id="fadeDuration"
-              type="number"
-              min="0.1"
-              max="5"
-              step="0.1"
-              value={fadeDuration}
-              onChange={handleFadeDurationChange}
-              className={styles.input}
+            <select
+              id="technique"
+              value={technique}
+              onChange={handleTechniqueChange}
+              className={styles.select}
               disabled={busy}
-            />
+            >
+              {TECHNIQUES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className={styles.formGroup}>
-            <label htmlFor="startSecond" className={styles.label}>
-              Start Second (for thumbnail/social media)
-            </label>
-            <input
-              id="startSecond"
-              type="number"
-              min="0"
-              max={videoDuration > 0 ? videoDuration - fadeDuration : 30}
-              step="0.5"
-              value={startSecond}
-              onChange={handleStartSecondChange}
-              className={styles.input}
-              disabled={busy}
-            />
-          </div>
+          {technique === "crossfade" && (
+            <>
+              <div className={styles.formGroup}>
+                <label htmlFor="fadeDuration" className={styles.label}>
+                  Fade Duration (seconds)
+                </label>
+                <input
+                  id="fadeDuration"
+                  type="number"
+                  min="0.1"
+                  max="5"
+                  step="0.1"
+                  value={fadeDuration}
+                  onChange={handleFadeDurationChange}
+                  className={styles.input}
+                  disabled={busy}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="startSecond" className={styles.label}>
+                  Start Second (for thumbnail/social media)
+                </label>
+                <input
+                  id="startSecond"
+                  type="number"
+                  min="0"
+                  max={videoDuration > 0 ? videoDuration - fadeDuration : 30}
+                  step="0.5"
+                  value={startSecond}
+                  onChange={handleStartSecondChange}
+                  className={styles.input}
+                  disabled={busy}
+                />
+              </div>
+            </>
+          )}
         </>
       )}
 

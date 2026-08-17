@@ -12,8 +12,9 @@ const ffmpegPath: string = require("ffmpeg-static");
 const ffprobePath: string = require("@ffprobe-installer/ffprobe").path;
 const VideoProcessor = require("./_lib/video-processor");
 
-// Mirrored in client/src/VideoToolUploader.tsx (TOOLS / FORMATS)
-const VALID_TOOLS = ["crossfade", "reverse", "image-sequence"];
+// Mirrored in client/src/VideoToolUploader.tsx (TOOLS / TECHNIQUES / FORMATS)
+const VALID_TOOLS = ["loop", "image-sequence"];
+const VALID_TECHNIQUES = ["reverse", "crossfade"];
 const VALID_FORMATS = ["mp4", "gif", "avif"];
 const CONTENT_TYPES: Record<string, string> = {
   mp4: "video/mp4",
@@ -137,6 +138,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       outputName = `${base}_video.${format}`;
       contentType = CONTENT_TYPES[format];
     } else {
+      const technique = VALID_TECHNIQUES.includes(options.technique)
+        ? options.technique
+        : "reverse";
       const fadeDuration = clamp(options.fadeDuration, 0, 10, 0.5);
       const startSecond = clamp(options.startSecond, 0, Number.MAX_SAFE_INTEGER, 0);
 
@@ -145,7 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       outputPath = await processor.createLoop(
         inputPath,
-        tool,
+        technique,
         String(fadeDuration),
         String(startSecond)
       );

@@ -87,9 +87,9 @@ describe("VideoToolUploader", () => {
     );
     expect(processBody).toMatchObject({
       blobUrl: "https://store.public.blob.vercel-storage.com/tiny-abc.mp4",
-      tool: "reverse",
+      tool: "loop",
       filename: "tiny.mp4",
-      options: { fadeDuration: 0.5, startSecond: 0 },
+      options: { technique: "reverse", fadeDuration: 0.5, startSecond: 0 },
     });
   });
 
