@@ -1,7 +1,7 @@
 {
-  "name": "video-looper",
+  "name": "videotools",
   "version": "1.0.0",
-  "description": "A web application for creating seamless video loops",
+  "description": "A web application with video tools: seamless loops, image sequences to video, and more",
   "private": true,
   "workspaces": [
     "client"

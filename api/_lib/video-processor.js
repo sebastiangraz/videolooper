@@ -3,8 +3,8 @@ const fs = require("fs").promises;
 const path = require("path");
 
 /**
- * Cross-platform video loop maker
- * Replicates the functionality of loop-maker.sh in Node.js
+ * Cross-platform video tools: seamless loops (reverse / crossfade) and
+ * image-sequence assembly (mp4 / gif / avif), all pure-Node ffmpeg.
  */
 class VideoProcessor {
   constructor(ffmpegPath, ffprobePath) {
@@ -305,6 +305,170 @@ class VideoProcessor {
       // Clean up temp directory
       await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
+  }
+
+  async createImageSequenceVideo(imagePaths, workDir, frameDuration, format, quality = 75) {
+    console.log(
+      `Assembling ${imagePaths.length} images into ${format} (quality ${quality})...`
+    );
+
+    const outputFile = path.join(workDir, `output.${format}`);
+
+    // Target frame size: first image's dimensions, capped at 1920 on the
+    // longest side (bounds gif/avif encode cost), floored to even for
+    // yuv420p/x264.
+    const probe = await this.runFFprobe([
+      "-v",
+      "error",
+      "-select_streams",
+      "v:0",
+      "-show_entries",
+      "stream=width,height",
+      "-of",
+      "csv=s=x:p=0",
+      imagePaths[0],
+    ]);
+    const [w, h] = probe.trim().split("x").map(Number);
+    if (!w || !h) {
+      throw new Error("Could not read dimensions of first image");
+    }
+    const scaleFactor = Math.min(1, 1920 / Math.max(w, h));
+    const W = Math.max(2, Math.floor((w * scaleFactor) / 2) * 2);
+    const H = Math.max(2, Math.floor((h * scaleFactor) / 2) * 2);
+
+    // Normalize every image to a uniform PNG frame (mixed formats and
+    // dimensions are the norm for user uploads; the sequence demuxer
+    // needs identical frames).
+    const framesDir = path.join(workDir, "frames");
+    await fs.mkdir(framesDir, { recursive: true });
+    for (let i = 0; i < imagePaths.length; i++) {
+      const framePath = path.join(
+        framesDir,
+        `norm_${String(i + 1).padStart(4, "0")}.png`
+      );
+      await this.runFFmpeg([
+        "-y",
+        "-i",
+        imagePaths[i],
+        "-vf",
+        `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1`,
+        "-frames:v",
+        "1",
+        framePath,
+      ]);
+    }
+
+    const framerate = (1 / frameDuration).toString();
+    const pattern = path.join(framesDir, "norm_%04d.png");
+
+    if (format === "gif") {
+      // Quality drives the palette size; at high quality use a fresh
+      // palette per frame (much better color, larger file).
+      const colors = Math.max(16, Math.min(256, Math.round((quality / 100) * 256)));
+      const perFrame = quality >= 80;
+      const vf = perFrame
+        ? `split[a][b];[a]palettegen=stats_mode=single:max_colors=${colors}[p];[b][p]paletteuse=new=1:dither=sierra2_4a`
+        : `split[a][b];[a]palettegen=stats_mode=diff:max_colors=${colors}[p];[b][p]paletteuse=dither=sierra2_4a`;
+      await this.runFFmpeg([
+        "-y",
+        "-framerate",
+        framerate,
+        "-i",
+        pattern,
+        "-vf",
+        vf,
+        "-loop",
+        "0",
+        outputFile,
+      ]);
+    } else if (format === "avif") {
+      // libaom crf: 0 best – 63 worst; quality 100 → 10, quality 1 → ~55.
+      // Slow the encoder down a notch at high quality.
+      const crf = Math.round(55 - (quality / 100) * 45);
+      const cpuUsed = quality >= 80 ? "6" : "8";
+      await this.runFFmpeg([
+        "-y",
+        "-framerate",
+        framerate,
+        "-i",
+        pattern,
+        "-c:v",
+        "libaom-av1",
+        "-crf",
+        String(crf),
+        "-b:v",
+        "0",
+        "-cpu-used",
+        cpuUsed,
+        "-row-mt",
+        "1",
+        "-threads",
+        "0",
+        "-pix_fmt",
+        "yuv420p",
+        "-f",
+        "avif",
+        outputFile,
+      ]);
+    } else {
+      // mp4: constant 30fps output (frames duplicated by the fps filter)
+      // so every player handles very low source frame rates.
+      // x264 crf: 0 best – 51 worst; quality 100 → 12, quality 1 → ~35.
+      const crf = Math.round(35 - (quality / 100) * 23);
+      await this.runFFmpeg([
+        "-y",
+        "-framerate",
+        framerate,
+        "-i",
+        pattern,
+        "-vf",
+        "fps=30,format=yuv420p",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        String(crf),
+        "-movflags",
+        "+faststart",
+        outputFile,
+      ]);
+    }
+
+    return outputFile;
+  }
+
+  async changeSpeed(inputFile, multiplier) {
+    console.log(`Changing playback speed by ${multiplier}x...`);
+
+    const outputFile = `${inputFile}_speed.mp4`;
+    const fps = await this.getVideoFPS(inputFile);
+
+    // setpts rescales frame timestamps; keeping the source frame rate via
+    // -r makes speed-ups drop frames (instead of raising the output fps)
+    // and slow-downs duplicate frames. Audio is dropped like in the other
+    // tools.
+    await this.runFFmpeg([
+      "-y",
+      "-i",
+      inputFile,
+      "-vf",
+      `setpts=PTS/${multiplier}`,
+      "-r",
+      fps.toString(),
+      "-an",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "fast",
+      "-crf",
+      "22",
+      "-pix_fmt",
+      "yuv420p",
+      outputFile,
+    ]);
+
+    return outputFile;
   }
 
   async reorderSegments(inputFile, outputFile, startSecond, duration) {

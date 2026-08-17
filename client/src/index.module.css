@@ -18,7 +18,9 @@
   align-items: center;
   padding: 4em 1em 1em 1em;
   color: var(--fg);
-  box-shadow: -1px 0 0 0 var(--border) inset, 1px 0 0 0 var(--border) inset;
+  box-shadow:
+    -1px 0 0 0 var(--border) inset,
+    1px 0 0 0 var(--border) inset;
 }
 
 .title {
@@ -36,9 +38,14 @@
 
 .main {
   display: flex;
+  flex-direction: column;
   flex-grow: 1;
 }
 
 .logo {
   width: 2em;
+
+  svg {
+    overflow: visible;
+  }
 }

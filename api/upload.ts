@@ -12,9 +12,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       request: req,
       onBeforeGenerateToken: async () => ({
         // ffmpeg detects the container from the file content, so accept any
-        // video type; octet-stream covers formats the browser can't identify
-        // (e.g. .mkv or .avi on some systems).
-        allowedContentTypes: ["video/*", "application/octet-stream"],
+        // video/image type; octet-stream covers formats the browser can't
+        // identify (e.g. .mkv or .avi on some systems).
+        allowedContentTypes: ["video/*", "image/*", "application/octet-stream"],
         maximumSizeInBytes: 200 * 1024 * 1024,
         addRandomSuffix: true,
       }),

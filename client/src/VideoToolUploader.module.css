@@ -1,0 +1,187 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  max-width: var(--width);
+  padding: 1em;
+  margin: 0 auto;
+  width: 92%;
+  box-shadow:
+    1px 0 0 0 var(--border) inset,
+    -1px 0 0 0 var(--border) inset;
+
+  &:last-child {
+    flex: 1;
+  }
+  /* If the container has exactly two children, reduce the gap */
+  &:has(> :nth-child(2):last-child) {
+    gap: 0.25em;
+  }
+}
+
+.container + .container {
+  box-shadow:
+    1px 0 0 0 var(--border) inset,
+    -1px 0 0 0 var(--border) inset,
+    0 1px 0 0 var(--border) inset;
+}
+
+input,
+select,
+button,
+::file-selector-button {
+  color: currentColor;
+  font-family: inherit;
+  text-transform: inherit;
+  font-size: 0.75em;
+}
+
+input[type="range"] {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background-color: transparent;
+  appearance: none;
+  --thumb-size: 1em;
+  /* 0 → 1 progress, set inline from the input's value */
+  --ratio: 0;
+  /* Where the fill grows from: 0% for a left-anchored slider, 50% for a
+     centre-anchored one (set inline, e.g. the speed slider). */
+  --fill-origin: 0%;
+  /* Offset by half a thumb so the fill edge sits under the thumb's centre
+     instead of drifting at the extremes. */
+  --fill: calc(
+    var(--thumb-size) / 2 + (100% - var(--thumb-size)) * var(--ratio)
+  );
+  &::-webkit-slider-runnable-track {
+    height: min(0.9px, 1px); /* hack to prevent subpixel bugs */
+    background: linear-gradient(
+      to right,
+      var(--border) 0 min(var(--fill-origin), var(--fill)),
+      var(--fg) min(var(--fill-origin), var(--fill))
+        max(var(--fill-origin), var(--fill)),
+      var(--border) max(var(--fill-origin), var(--fill)) 100%
+    );
+  }
+  &::-webkit-slider-thumb {
+    width: var(--thumb-size);
+    height: var(--thumb-size);
+    border-radius: 50%;
+    background-color: red;
+    cursor: pointer;
+    position: relative;
+    top: calc(-0.5em - 1px);
+  }
+}
+
+/* Detent marks overlaying a range slider, sitting on top of the track.
+   Tick spacing matches the slider's value→position mapping: the usable
+   track is inset half a thumb on each side. */
+.sliderTicks {
+  position: relative;
+  width: calc(100% - 2px);
+  --minor-ticks: 60;
+  --major-ticks: 6;
+  /* half the thumb: 1em at the input's 0.75em font-size */
+  --tick-inset: calc((0.75em / 2) + 1px);
+}
+
+.sliderTicks::before {
+  content: "";
+  position: absolute;
+  left: var(--tick-inset);
+  right: var(--tick-inset);
+  bottom: calc(50% + 1px);
+  height: 6px;
+
+  pointer-events: none;
+  /* whole-number detents (6px, solid) over step detents (4px, subtle) */
+  background-image:
+    linear-gradient(to right, var(--fg) 0 1px, transparent 1px),
+    linear-gradient(to right, var(--border) 0 1px, transparent 1px);
+  background-size:
+    calc((100% - 1px) / var(--major-ticks)) 6px,
+    calc((100% - 1px) / var(--minor-ticks)) 4px;
+  background-position:
+    0 100%,
+    0 100%;
+  background-repeat: repeat-x;
+}
+
+input[type="range"] .fileInput {
+  margin-bottom: 0.5em;
+}
+
+.fileInput::file-selector-button {
+  margin-right: 1em;
+  height: 2.5em;
+  padding: 0 1em;
+  border-radius: 0.75em;
+  background-color: color-mix(in srgb, var(--fg) 20%, transparent);
+  border: none;
+  cursor: pointer;
+  color: currentColor;
+}
+
+.select {
+  padding: 0.5em;
+  border-radius: 0.75em;
+  border: 1px solid var(--border);
+  background-color: var(--bg-1);
+  margin-bottom: 0.5em;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.label {
+  font-size: 0.65em;
+  color: color-mix(in srgb, var(--fg) 50%, transparent);
+}
+
+.button {
+  padding: 1em 2em;
+  align-self: flex-start;
+  border-radius: 0.75em;
+  background-color: var(--fg);
+  color: var(--bg);
+  border: none;
+  box-shadow:
+    0 4px 6px -1px color-mix(in srgb, var(--fg) 20%, transparent),
+    0 2px 4px -1px color-mix(in srgb, var(--fg) 20%, transparent),
+    0 0 0 1px var(--border) inset;
+  cursor: pointer;
+  &:hover {
+    background-color: color-mix(in srgb, var(--fg) 80%, transparent);
+  }
+}
+
+.status {
+  background-color: var(--bg-2);
+  padding: 1em;
+  border-radius: 0.75em;
+  font-size: 0.65em;
+  box-shadow:
+    0 4px 12px -1px color-mix(in srgb, var(--fg) 7%, transparent),
+    0 2px 4px -1px color-mix(in srgb, var(--fg) 3%, transparent),
+    0 0 0 1px var(--border) inset;
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.input {
+  padding: 0.5em;
+  border-radius: 0.75em;
+  border: 1px solid var(--border);
+  background-color: var(--bg-1);
+  margin-bottom: 0.5em;
+  width: 100%;
+}
