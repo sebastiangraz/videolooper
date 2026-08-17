@@ -11,12 +11,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: req.body as HandleUploadBody,
       request: req,
       onBeforeGenerateToken: async () => ({
-        allowedContentTypes: [
-          "video/mp4",
-          "video/quicktime",
-          "video/webm",
-          "video/x-matroska",
-        ],
+        // ffmpeg detects the container from the file content, so accept any
+        // video type; octet-stream covers formats the browser can't identify
+        // (e.g. .mkv or .avi on some systems).
+        allowedContentTypes: ["video/*", "application/octet-stream"],
         maximumSizeInBytes: 200 * 1024 * 1024,
         addRandomSuffix: true,
       }),

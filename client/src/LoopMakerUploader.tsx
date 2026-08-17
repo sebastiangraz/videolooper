@@ -55,6 +55,9 @@ export const LoopMakerUploader = () => {
       const blob = await upload(file.name, file, {
         access: "public",
         handleUploadUrl: "/api/upload",
+        // Browsers report no type for some containers (.avi, .mkv on
+        // certain systems); fall back so the upload token isn't refused.
+        contentType: file.type || "application/octet-stream",
       });
 
       setMsg("Processing … this can take a minute");
@@ -110,7 +113,7 @@ export const LoopMakerUploader = () => {
       <input
         aria-label="choose video"
         type="file"
-        accept="video/*"
+        accept="video/*,.avi,.mkv,.mov,.webm,.m4v,.wmv,.mpg,.mpeg,.3gp,.ts"
         onChange={pick}
         className={styles.fileInput}
       />

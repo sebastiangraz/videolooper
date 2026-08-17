@@ -85,7 +85,9 @@ class VideoProcessor {
         "-i",
         reverseFile,
         "-filter_complex",
-        "[0:v][1:v]concat=n=2:v=1:a=0",
+        // Normalize SAR on both inputs: re-encoding can round a source's
+        // pixel aspect ratio differently, and concat rejects mismatched SARs.
+        "[0:v]setsar=1[v0];[1:v]setsar=1[v1];[v0][v1]concat=n=2:v=1:a=0",
         "-c:v",
         "libx264",
         "-preset",

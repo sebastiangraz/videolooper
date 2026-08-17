@@ -4,6 +4,7 @@
   "functions": {
     "api/loop.ts": {
       "maxDuration": 300,
+      "memory": 2048,
       "includeFiles": "node_modules/{ffmpeg-static,@ffprobe-installer}/**"
     },
     "api/upload.ts": { "maxDuration": 30 }

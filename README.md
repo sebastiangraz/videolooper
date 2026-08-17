@@ -64,9 +64,18 @@ vercel        # preview deploy
 vercel --prod # production
 ```
 
-`vercel.json` sets `api/loop.ts` to `maxDuration: 300` and `memory: 3009` (the reverse technique buffers all decoded frames in RAM). **On the Hobby plan remove the `memory` key** — the Fluid compute default applies.
+`vercel.json` sets `api/loop.ts` to `maxDuration: 300` and `memory: 2048` (the Hobby plan maximum; on Pro, raise it — the reverse technique buffers all decoded frames in RAM).
 
 ## Limits
 
 - Uploads capped at 200 MB (`api/upload.ts`); very long/high-res videos can still exceed the 300 s function duration or `/tmp` space.
+- The **reverse** technique on very high-resolution sources (~4K) exceeds the 2 GB Hobby memory limit and fails; 1080p is verified working. Crossfade works even at 4K. Fixes: upgrade to Pro and raise `memory`, or rework `createReverseLoop` to reverse in segments.
+- Any container ffmpeg can read is accepted (mp4, mov, avi, webm, mkv, …); output is always mp4.
 - Processing is synchronous — the browser keeps a single request open while the function works.
+
+## Future ideas
+
+- Allow to upload image sequences into video (gif, avif, mp4, etc.)
+- Speed up or slow down video files
+- Process video to allow transparent background
+- Process video to allow to add a watermark / AI no-index tag to avoid crawlers.
