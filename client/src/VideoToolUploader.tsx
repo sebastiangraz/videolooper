@@ -362,23 +362,25 @@ export const VideoToolUploader = () => {
                 ` – ~${(videoDuration / speedMultiplier).toFixed(1)}s`}
               )
             </label>
-            <input
-              id="speed"
-              type="range"
-              min={-3}
-              max={3}
-              step="0.1"
-              value={speed}
-              onChange={handleSpeedChange}
-              className={styles.input}
-              disabled={busy}
-              style={
-                {
-                  "--ratio": (speed + 3) / 6,
-                  "--fill-origin": "50%",
-                } as CSSProperties
-              }
-            />
+            <div className={styles.sliderTicks}>
+              <input
+                id="speed"
+                type="range"
+                min={-3}
+                max={3}
+                step="0.1"
+                value={speed}
+                onChange={handleSpeedChange}
+                className={styles.input}
+                disabled={busy}
+                style={
+                  {
+                    "--ratio": (speed + 3) / 6,
+                    "--fill-origin": "50%",
+                  } as CSSProperties
+                }
+              />
+            </div>
           </div>
         )}
 

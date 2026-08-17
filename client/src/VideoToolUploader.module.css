@@ -39,6 +39,7 @@ button,
 input[type="range"] {
   width: 100%;
   padding: 0;
+  margin: 0;
   border: none;
   background-color: transparent;
   appearance: none;
@@ -54,7 +55,7 @@ input[type="range"] {
     var(--thumb-size) / 2 + (100% - var(--thumb-size)) * var(--ratio)
   );
   &::-webkit-slider-runnable-track {
-    height: 1px;
+    height: min(0.9px, 1px); /* hack to prevent subpixel bugs */
     background: linear-gradient(
       to right,
       var(--border) 0 min(var(--fill-origin), var(--fill)),
@@ -74,13 +75,48 @@ input[type="range"] {
   }
 }
 
+/* Detent marks overlaying a range slider, sitting on top of the track.
+   Tick spacing matches the slider's value→position mapping: the usable
+   track is inset half a thumb on each side. */
+.sliderTicks {
+  position: relative;
+  width: calc(100% - 2px);
+  --minor-ticks: 60;
+  --major-ticks: 6;
+  /* half the thumb: 1em at the input's 0.75em font-size */
+  --tick-inset: calc((0.75em / 2) + 1px);
+}
+
+.sliderTicks::before {
+  content: "";
+  position: absolute;
+  left: var(--tick-inset);
+  right: var(--tick-inset);
+  bottom: calc(50% + 1px);
+  height: 6px;
+
+  pointer-events: none;
+  /* whole-number detents (6px, solid) over step detents (4px, subtle) */
+  background-image:
+    linear-gradient(to right, var(--fg) 0 1px, transparent 1px),
+    linear-gradient(to right, var(--border) 0 1px, transparent 1px);
+  background-size:
+    calc((100% - 1px) / var(--major-ticks)) 6px,
+    calc((100% - 1px) / var(--minor-ticks)) 4px;
+  background-position:
+    0 100%,
+    0 100%;
+  background-repeat: repeat-x;
+}
+
 input[type="range"] .fileInput {
   margin-bottom: 0.5em;
 }
 
 .fileInput::file-selector-button {
   margin-right: 1em;
-  padding: 0.5em 1em;
+  height: 2.5em;
+  padding: 0 1em;
   border-radius: 0.75em;
   background-color: color-mix(in srgb, var(--fg) 20%, transparent);
   border: none;
