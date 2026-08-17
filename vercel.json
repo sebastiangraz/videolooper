@@ -9,6 +9,5 @@
       "includeFiles": "node_modules/{ffmpeg-static,@ffprobe-installer}/**"
     },
     "api/upload.ts": { "maxDuration": 30 }
-  },
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+  }
 }
