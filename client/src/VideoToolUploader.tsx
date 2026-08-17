@@ -11,13 +11,21 @@ const TOOLS = [
   {
     value: "reverse",
     label: "Loop – reverse (forward then reversed)",
-    input: { accept: VIDEO_ACCEPT, multiple: false, pickerLabel: "choose video" },
+    input: {
+      accept: VIDEO_ACCEPT,
+      multiple: false,
+      pickerLabel: "choose video",
+    },
     actionLabel: "Loop",
   },
   {
     value: "crossfade",
     label: "Loop – crossfade (smooth transition)",
-    input: { accept: VIDEO_ACCEPT, multiple: false, pickerLabel: "choose video" },
+    input: {
+      accept: VIDEO_ACCEPT,
+      multiple: false,
+      pickerLabel: "choose video",
+    },
     actionLabel: "Loop",
   },
   {
@@ -49,7 +57,7 @@ function estimateOutputBytes(
   h: number,
   frames: number,
   format: string,
-  quality: number
+  quality: number,
 ): number {
   const bpp = SIZE_BPP[format] ?? SIZE_BPP.mp4;
   const t = quality / 100;
@@ -76,7 +84,9 @@ export const VideoToolUploader = () => {
   const [format, setFormat] = useState<string>("mp4");
   const [quality, setQuality] = useState<number>(75);
   const [videoDuration, setVideoDuration] = useState<number>(0);
-  const [imageDims, setImageDims] = useState<{ w: number; h: number } | null>(null);
+  const [imageDims, setImageDims] = useState<{ w: number; h: number } | null>(
+    null,
+  );
 
   const currentTool = TOOLS.find((t) => t.value === tool) ?? TOOLS[0];
 
@@ -87,7 +97,7 @@ export const VideoToolUploader = () => {
     // Frame order for image sequences follows the filenames (natural sort,
     // so img2 sorts before img10).
     const sorted = [...picked].sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { numeric: true })
+      a.name.localeCompare(b.name, undefined, { numeric: true }),
     );
     setFiles(sorted);
     setVideoDuration(0);
@@ -150,7 +160,9 @@ export const VideoToolUploader = () => {
       const blobUrls: string[] = [];
       for (let i = 0; i < files.length; i++) {
         setMsg(
-          files.length > 1 ? `Uploading ${i + 1}/${files.length} …` : "Uploading …"
+          files.length > 1
+            ? `Uploading ${i + 1}/${files.length} …`
+            : "Uploading …",
         );
         const blob = await upload(files[i].name, files[i], {
           access: "public",
@@ -178,7 +190,7 @@ export const VideoToolUploader = () => {
       if (!res.ok) {
         const errorData = await res.json().catch(() => null);
         throw new Error(
-          errorData?.error || `Server error (${res.status}): Unable to process`
+          errorData?.error || `Server error (${res.status}): Unable to process`,
         );
       }
       const { url, filename: resultName } = await res.json();
@@ -189,7 +201,8 @@ export const VideoToolUploader = () => {
       // Result lives on Blob storage (cross-origin), where the anchor
       // `download` attribute is ignored — fetch to an object URL instead.
       const fileRes = await fetch(url);
-      if (!fileRes.ok) throw new Error(`Failed to download result (${fileRes.status})`);
+      if (!fileRes.ok)
+        throw new Error(`Failed to download result (${fileRes.status})`);
       const objectUrl = URL.createObjectURL(await fileRes.blob());
       const a = Object.assign(document.createElement("a"), {
         href: objectUrl,
@@ -323,7 +336,18 @@ export const VideoToolUploader = () => {
 
           <div className={styles.formGroup}>
             <label htmlFor="quality" className={styles.label}>
-              Quality ({quality})
+              Quality
+              {files.length > 0 &&
+                imageDims &&
+                ` ~${formatBytes(
+                  estimateOutputBytes(
+                    imageDims.w,
+                    imageDims.h,
+                    files.length,
+                    format,
+                    quality,
+                  ),
+                )}`}
             </label>
             <input
               id="quality"
@@ -337,31 +361,9 @@ export const VideoToolUploader = () => {
               disabled={busy}
             />
           </div>
-
-          {files.length > 0 && imageDims && (
-            <small className={styles.label}>
-              Estimated output size: ~
-              {formatBytes(
-                estimateOutputBytes(
-                  imageDims.w,
-                  imageDims.h,
-                  files.length,
-                  format,
-                  quality
-                )
-              )}{" "}
-              (rough)
-            </small>
-          )}
         </>
       )}
 
-      {currentTool.input.multiple && files.length > 0 && (
-        <small className={styles.label}>
-          {files.length} image{files.length === 1 ? "" : "s"} selected (frame
-          order follows filenames)
-        </small>
-      )}
       {videoDuration > 0 && (
         <small className={styles.label}>
           Video length: {videoDuration} seconds
