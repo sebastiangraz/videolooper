@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npm run build --workspace client",
+  "outputDirectory": "client/dist",
+  "functions": {
+    "api/loop.ts": { "maxDuration": 300, "memory": 3009 },
+    "api/upload.ts": { "maxDuration": 30 }
+  },
+  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+}
