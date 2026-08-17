@@ -27,13 +27,25 @@ input[type="range"] {
   border: none;
   background-color: transparent;
   appearance: none;
+  --thumb-size: 1em;
+  /* 0 → 1 progress, set inline from the input's value */
+  --ratio: 0;
+  /* Offset by half a thumb so the fill edge sits under the thumb's centre
+     instead of drifting at the extremes. */
+  --fill: calc(
+    var(--thumb-size) / 2 + (100% - var(--thumb-size)) * var(--ratio)
+  );
   &::-webkit-slider-runnable-track {
     height: 1px;
-    background-color: var(--border);
+    background: linear-gradient(
+      to right,
+      var(--fg) 0 var(--fill),
+      var(--border) var(--fill) 100%
+    );
   }
   &::-webkit-slider-thumb {
-    width: 1em;
-    height: 1em;
+    width: var(--thumb-size);
+    height: var(--thumb-size);
     border-radius: 50%;
     background-color: red;
     cursor: pointer;

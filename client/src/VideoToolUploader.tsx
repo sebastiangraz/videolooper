@@ -1,4 +1,4 @@
-import { useState, ChangeEvent } from "react";
+import { useState, ChangeEvent, CSSProperties } from "react";
 import { upload } from "@vercel/blob/client";
 import styles from "./VideoToolUploader.module.css";
 
@@ -174,7 +174,7 @@ export const VideoToolUploader = () => {
         blobUrls.push(blob.url);
       }
 
-      setMsg("Processing … this can take a minute");
+      setMsg("Processing …");
       const isSequence = tool === "image-sequence";
       const res = await fetch("/api/process", {
         method: "POST",
@@ -352,13 +352,18 @@ export const VideoToolUploader = () => {
             <input
               id="quality"
               type="range"
-              min="1"
-              max="100"
+              min={1}
+              max={100}
               step="1"
               value={quality}
               onChange={handleQualityChange}
               className={styles.input}
               disabled={busy}
+              style={
+                {
+                  "--ratio": (quality - 1) / (100 - 1),
+                } as CSSProperties
+              }
             />
           </div>
         </>
