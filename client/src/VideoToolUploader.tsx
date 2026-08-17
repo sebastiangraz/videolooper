@@ -35,6 +35,36 @@ const FORMATS = [
   { value: "avif", label: "AVIF" },
 ];
 
+// Rough output-size model: bytes per pixel per frame at quality 0 → 100.
+// Real encoders vary wildly with content, so this is an order-of-magnitude
+// estimate only.
+const SIZE_BPP: Record<string, { min: number; max: number }> = {
+  mp4: { min: 0.01, max: 0.15 },
+  gif: { min: 0.05, max: 0.5 },
+  avif: { min: 0.004, max: 0.1 },
+};
+
+function estimateOutputBytes(
+  w: number,
+  h: number,
+  frames: number,
+  format: string,
+  quality: number
+): number {
+  const bpp = SIZE_BPP[format] ?? SIZE_BPP.mp4;
+  const t = quality / 100;
+  // The server caps the longest side at 1920
+  const scale = Math.min(1, 1920 / Math.max(w, h));
+  const pixels = Math.round(w * scale) * Math.round(h * scale);
+  // Quality affects size superlinearly
+  return pixels * frames * (bpp.min + (bpp.max - bpp.min) * t * t);
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
 export const VideoToolUploader = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [status, setMsg] = useState<string>("");
@@ -44,7 +74,9 @@ export const VideoToolUploader = () => {
   const [startSecond, setStartSecond] = useState<number>(0);
   const [frameDuration, setFrameDuration] = useState<number>(1);
   const [format, setFormat] = useState<string>("mp4");
+  const [quality, setQuality] = useState<number>(75);
   const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [imageDims, setImageDims] = useState<{ w: number; h: number } | null>(null);
 
   const currentTool = TOOLS.find((t) => t.value === tool) ?? TOOLS[0];
 
@@ -59,16 +91,26 @@ export const VideoToolUploader = () => {
     );
     setFiles(sorted);
     setVideoDuration(0);
+    setImageDims(null);
 
-    // Get video duration when a single video is selected
     const first = sorted[0];
     if (!currentTool.input.multiple && first.type.startsWith("video/")) {
+      // Get video duration when a single video is selected
       const video = document.createElement("video");
       video.preload = "metadata";
       video.onloadedmetadata = () => {
         setVideoDuration(Math.floor(video.duration));
       };
       video.src = URL.createObjectURL(first);
+    } else if (first.type.startsWith("image/")) {
+      // First image's dimensions drive the output frame size (and the
+      // size estimate)
+      const img = new Image();
+      img.onload = () => {
+        setImageDims({ w: img.naturalWidth, h: img.naturalHeight });
+        URL.revokeObjectURL(img.src);
+      };
+      img.src = URL.createObjectURL(first);
     }
   };
 
@@ -77,6 +119,7 @@ export const VideoToolUploader = () => {
     // A file picked for one tool is rarely valid for another
     setFiles([]);
     setVideoDuration(0);
+    setImageDims(null);
   };
 
   const handleFadeDurationChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -93,6 +136,10 @@ export const VideoToolUploader = () => {
 
   const handleFormatChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setFormat(e.target.value);
+  };
+
+  const handleQualityChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setQuality(parseInt(e.target.value, 10));
   };
 
   const submit = async () => {
@@ -124,7 +171,7 @@ export const VideoToolUploader = () => {
           tool,
           filename: files[0].name,
           ...(isSequence
-            ? { blobUrls, options: { frameDuration, format } }
+            ? { blobUrls, options: { frameDuration, format, quality } }
             : { blobUrl: blobUrls[0], options: { fadeDuration, startSecond } }),
         }),
       });
@@ -273,6 +320,39 @@ export const VideoToolUploader = () => {
               ))}
             </select>
           </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="quality" className={styles.label}>
+              Quality ({quality})
+            </label>
+            <input
+              id="quality"
+              type="range"
+              min="1"
+              max="100"
+              step="1"
+              value={quality}
+              onChange={handleQualityChange}
+              className={styles.input}
+              disabled={busy}
+            />
+          </div>
+
+          {files.length > 0 && imageDims && (
+            <small className={styles.label}>
+              Estimated output size: ~
+              {formatBytes(
+                estimateOutputBytes(
+                  imageDims.w,
+                  imageDims.h,
+                  files.length,
+                  format,
+                  quality
+                )
+              )}{" "}
+              (rough)
+            </small>
+          )}
         </>
       )}
 

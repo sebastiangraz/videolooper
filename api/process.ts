@@ -111,6 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (tool === "image-sequence") {
       const frameDuration = clamp(options.frameDuration, 0.02, 10, 1);
       const format = VALID_FORMATS.includes(options.format) ? options.format : "mp4";
+      const quality = Math.round(clamp(options.quality, 1, 100, 75));
 
       const imagePaths: string[] = [];
       for (let i = 0; i < inputBlobUrls.length; i++) {
@@ -130,7 +131,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         imagePaths,
         workDir,
         frameDuration,
-        format
+        format,
+        quality
       );
       outputName = `${base}_video.${format}`;
       contentType = CONTENT_TYPES[format];

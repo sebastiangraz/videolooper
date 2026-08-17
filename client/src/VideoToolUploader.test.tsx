@@ -141,7 +141,7 @@ describe("VideoToolUploader", () => {
         "https://store.public.blob.vercel-storage.com/a.png",
         "https://store.public.blob.vercel-storage.com/b.png",
       ],
-      options: { frameDuration: 1, format: "gif" },
+      options: { frameDuration: 1, format: "gif", quality: 75 },
     });
   });
 });

@@ -307,8 +307,10 @@ class VideoProcessor {
     }
   }
 
-  async createImageSequenceVideo(imagePaths, workDir, frameDuration, format) {
-    console.log(`Assembling ${imagePaths.length} images into ${format}...`);
+  async createImageSequenceVideo(imagePaths, workDir, frameDuration, format, quality = 75) {
+    console.log(
+      `Assembling ${imagePaths.length} images into ${format} (quality ${quality})...`
+    );
 
     const outputFile = path.join(workDir, `output.${format}`);
 
@@ -360,6 +362,13 @@ class VideoProcessor {
     const pattern = path.join(framesDir, "norm_%04d.png");
 
     if (format === "gif") {
+      // Quality drives the palette size; at high quality use a fresh
+      // palette per frame (much better color, larger file).
+      const colors = Math.max(16, Math.min(256, Math.round((quality / 100) * 256)));
+      const perFrame = quality >= 80;
+      const vf = perFrame
+        ? `split[a][b];[a]palettegen=stats_mode=single:max_colors=${colors}[p];[b][p]paletteuse=new=1:dither=sierra2_4a`
+        : `split[a][b];[a]palettegen=stats_mode=diff:max_colors=${colors}[p];[b][p]paletteuse=dither=sierra2_4a`;
       await this.runFFmpeg([
         "-y",
         "-framerate",
@@ -367,12 +376,16 @@ class VideoProcessor {
         "-i",
         pattern,
         "-vf",
-        "split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=sierra2_4a",
+        vf,
         "-loop",
         "0",
         outputFile,
       ]);
     } else if (format === "avif") {
+      // libaom crf: 0 best – 63 worst; quality 100 → 10, quality 1 → ~55.
+      // Slow the encoder down a notch at high quality.
+      const crf = Math.round(55 - (quality / 100) * 45);
+      const cpuUsed = quality >= 80 ? "6" : "8";
       await this.runFFmpeg([
         "-y",
         "-framerate",
@@ -382,11 +395,11 @@ class VideoProcessor {
         "-c:v",
         "libaom-av1",
         "-crf",
-        "32",
+        String(crf),
         "-b:v",
         "0",
         "-cpu-used",
-        "8",
+        cpuUsed,
         "-row-mt",
         "1",
         "-threads",
@@ -400,6 +413,8 @@ class VideoProcessor {
     } else {
       // mp4: constant 30fps output (frames duplicated by the fps filter)
       // so every player handles very low source frame rates.
+      // x264 crf: 0 best – 51 worst; quality 100 → 12, quality 1 → ~35.
+      const crf = Math.round(35 - (quality / 100) * 23);
       await this.runFFmpeg([
         "-y",
         "-framerate",
@@ -413,7 +428,7 @@ class VideoProcessor {
         "-preset",
         "fast",
         "-crf",
-        "22",
+        String(crf),
         "-movflags",
         "+faststart",
         outputFile,
