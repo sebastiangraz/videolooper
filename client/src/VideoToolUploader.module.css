@@ -3,12 +3,27 @@
   flex-direction: column;
   gap: 1em;
   max-width: var(--width);
+  padding: 1em;
   margin: 0 auto;
   width: 92%;
-  padding: 1em;
   box-shadow:
     1px 0 0 0 var(--border) inset,
     -1px 0 0 0 var(--border) inset;
+
+  &:last-child {
+    flex: 1;
+  }
+  /* If the container has exactly two children, reduce the gap */
+  &:has(> :nth-child(2):last-child) {
+    gap: 0.25em;
+  }
+}
+
+.container + .container {
+  box-shadow:
+    1px 0 0 0 var(--border) inset,
+    -1px 0 0 0 var(--border) inset,
+    0 1px 0 0 var(--border) inset;
 }
 
 input,

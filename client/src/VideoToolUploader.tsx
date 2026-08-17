@@ -232,184 +232,188 @@ export const VideoToolUploader = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.formGroup}>
-        <label htmlFor="tool" className={styles.label}>
-          Video Tool
-        </label>
-        <select
-          id="tool"
-          value={tool}
-          onChange={handleToolChange}
-          className={styles.select}
-          disabled={busy}
-        >
-          {TOOLS.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
+    <>
+      <div className={styles.container}>
+        <div className={styles.formGroup}>
+          <label htmlFor="tool" className={styles.label}>
+            Video Tool
+          </label>
+          <select
+            id="tool"
+            value={tool}
+            onChange={handleToolChange}
+            className={styles.select}
+            disabled={busy}
+          >
+            {TOOLS.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <input
+          // Remount on tool change so the browser's file display resets
+          key={tool}
+          aria-label={currentTool.input.pickerLabel}
+          type="file"
+          accept={currentTool.input.accept}
+          multiple={currentTool.input.multiple}
+          onChange={pick}
+          className={styles.fileInput}
+        />
       </div>
 
-      <input
-        // Remount on tool change so the browser's file display resets
-        key={tool}
-        aria-label={currentTool.input.pickerLabel}
-        type="file"
-        accept={currentTool.input.accept}
-        multiple={currentTool.input.multiple}
-        onChange={pick}
-        className={styles.fileInput}
-      />
+      <div className={styles.container}>
+        {tool === "loop" && (
+          <>
+            <div className={styles.formGroup}>
+              <label htmlFor="technique" className={styles.label}>
+                Looping Technique
+              </label>
+              <select
+                id="technique"
+                value={technique}
+                onChange={handleTechniqueChange}
+                className={styles.select}
+                disabled={busy}
+              >
+                {TECHNIQUES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-      {tool === "loop" && (
-        <>
-          <div className={styles.formGroup}>
-            <label htmlFor="technique" className={styles.label}>
-              Looping Technique
-            </label>
-            <select
-              id="technique"
-              value={technique}
-              onChange={handleTechniqueChange}
-              className={styles.select}
-              disabled={busy}
-            >
-              {TECHNIQUES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            {technique === "crossfade" && (
+              <>
+                <div className={styles.formGroup}>
+                  <label htmlFor="fadeDuration" className={styles.label}>
+                    Fade Duration (seconds)
+                  </label>
+                  <input
+                    id="fadeDuration"
+                    type="number"
+                    min="0.1"
+                    max="5"
+                    step="0.1"
+                    value={fadeDuration}
+                    onChange={handleFadeDurationChange}
+                    className={styles.input}
+                    disabled={busy}
+                  />
+                </div>
 
-          {technique === "crossfade" && (
-            <>
-              <div className={styles.formGroup}>
-                <label htmlFor="fadeDuration" className={styles.label}>
-                  Fade Duration (seconds)
-                </label>
-                <input
-                  id="fadeDuration"
-                  type="number"
-                  min="0.1"
-                  max="5"
-                  step="0.1"
-                  value={fadeDuration}
-                  onChange={handleFadeDurationChange}
-                  className={styles.input}
-                  disabled={busy}
-                />
-              </div>
+                <div className={styles.formGroup}>
+                  <label htmlFor="startSecond" className={styles.label}>
+                    Start Second (for thumbnails)
+                  </label>
+                  <input
+                    id="startSecond"
+                    type="number"
+                    min="0"
+                    max={videoDuration > 0 ? videoDuration - fadeDuration : 30}
+                    step="0.5"
+                    value={startSecond}
+                    onChange={handleStartSecondChange}
+                    className={styles.input}
+                    disabled={busy}
+                  />
+                </div>
+              </>
+            )}
+          </>
+        )}
 
-              <div className={styles.formGroup}>
-                <label htmlFor="startSecond" className={styles.label}>
-                  Start Second (for thumbnail/social media)
-                </label>
-                <input
-                  id="startSecond"
-                  type="number"
-                  min="0"
-                  max={videoDuration > 0 ? videoDuration - fadeDuration : 30}
-                  step="0.5"
-                  value={startSecond}
-                  onChange={handleStartSecondChange}
-                  className={styles.input}
-                  disabled={busy}
-                />
-              </div>
-            </>
-          )}
-        </>
-      )}
+        {tool === "image-sequence" && (
+          <>
+            <div className={styles.formGroup}>
+              <label htmlFor="frameDuration" className={styles.label}>
+                Time per frame (seconds)
+              </label>
+              <input
+                id="frameDuration"
+                type="number"
+                min="0.02"
+                max="10"
+                step="0.1"
+                value={frameDuration}
+                onChange={handleFrameDurationChange}
+                className={styles.input}
+                disabled={busy}
+              />
+            </div>
 
-      {tool === "image-sequence" && (
-        <>
-          <div className={styles.formGroup}>
-            <label htmlFor="frameDuration" className={styles.label}>
-              Time per frame (seconds)
-            </label>
-            <input
-              id="frameDuration"
-              type="number"
-              min="0.02"
-              max="10"
-              step="0.1"
-              value={frameDuration}
-              onChange={handleFrameDurationChange}
-              className={styles.input}
-              disabled={busy}
-            />
-          </div>
+            <div className={styles.formGroup}>
+              <label htmlFor="format" className={styles.label}>
+                Output format
+              </label>
+              <select
+                id="format"
+                value={format}
+                onChange={handleFormatChange}
+                className={styles.select}
+                disabled={busy}
+              >
+                {FORMATS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className={styles.formGroup}>
-            <label htmlFor="format" className={styles.label}>
-              Output format
-            </label>
-            <select
-              id="format"
-              value={format}
-              onChange={handleFormatChange}
-              className={styles.select}
-              disabled={busy}
-            >
-              {FORMATS.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className={styles.formGroup}>
+              <label htmlFor="quality" className={styles.label}>
+                Quality
+                {files.length > 0 &&
+                  imageDims &&
+                  ` ~${formatBytes(
+                    estimateOutputBytes(
+                      imageDims.w,
+                      imageDims.h,
+                      files.length,
+                      format,
+                      quality,
+                    ),
+                  )}`}
+              </label>
+              <input
+                id="quality"
+                type="range"
+                min={1}
+                max={100}
+                step="1"
+                value={quality}
+                onChange={handleQualityChange}
+                className={styles.input}
+                disabled={busy}
+                style={
+                  {
+                    "--ratio": (quality - 1) / (100 - 1),
+                  } as CSSProperties
+                }
+              />
+            </div>
+          </>
+        )}
 
-          <div className={styles.formGroup}>
-            <label htmlFor="quality" className={styles.label}>
-              Quality
-              {files.length > 0 &&
-                imageDims &&
-                ` ~${formatBytes(
-                  estimateOutputBytes(
-                    imageDims.w,
-                    imageDims.h,
-                    files.length,
-                    format,
-                    quality,
-                  ),
-                )}`}
-            </label>
-            <input
-              id="quality"
-              type="range"
-              min={1}
-              max={100}
-              step="1"
-              value={quality}
-              onChange={handleQualityChange}
-              className={styles.input}
-              disabled={busy}
-              style={
-                {
-                  "--ratio": (quality - 1) / (100 - 1),
-                } as CSSProperties
-              }
-            />
-          </div>
-        </>
-      )}
-
-      {videoDuration > 0 && (
-        <small className={styles.label}>
-          Video length: {videoDuration} seconds
-        </small>
-      )}
-      <button
-        onClick={submit}
-        disabled={!files.length || busy}
-        className={styles.button}
-      >
-        {busy ? "Working …" : currentTool.actionLabel}
-      </button>
-      {status && <p className={styles.status}>{status}</p>}
-    </div>
+        {videoDuration > 0 && (
+          <small className={styles.label}>
+            Video length: {videoDuration} seconds
+          </small>
+        )}
+        <button
+          onClick={submit}
+          disabled={!files.length || busy}
+          className={styles.button}
+        >
+          {busy ? "Working …" : currentTool.actionLabel}
+        </button>
+        {status && <p className={styles.status}>{status}</p>}
+      </div>
+    </>
   );
 };
