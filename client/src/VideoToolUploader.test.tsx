@@ -89,7 +89,7 @@ describe("VideoToolUploader", () => {
       blobUrl: "https://store.public.blob.vercel-storage.com/tiny-abc.mp4",
       tool: "loop",
       filename: "tiny.mp4",
-      options: { technique: "crossfade", fadeDuration: 0.5, startSecond: 0 },
+      options: { technique: "crossfade", fadeDuration: 0.5, startSecond: 0, quality: 75 },
     });
   });
 

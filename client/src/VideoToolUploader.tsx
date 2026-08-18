@@ -203,7 +203,7 @@ export const VideoToolUploader = () => {
             ? { blobUrl: blobUrls[0], options: { speed } }
             : {
                 blobUrl: blobUrls[0],
-                options: { technique, fadeDuration, startSecond },
+                options: { technique, fadeDuration, startSecond, quality },
               };
       const res = await fetch("/api/process", {
         method: "POST",
@@ -346,6 +346,28 @@ export const VideoToolUploader = () => {
                 </div>
               </>
             )}
+
+            <div className={styles.formGroup}>
+              <label htmlFor="quality" className={styles.label}>
+                Quality
+              </label>
+              <input
+                id="quality"
+                type="range"
+                min={1}
+                max={100}
+                step="1"
+                value={quality}
+                onChange={handleQualityChange}
+                className={styles.input}
+                disabled={busy}
+                style={
+                  {
+                    "--ratio": (quality - 1) / (100 - 1),
+                  } as CSSProperties
+                }
+              />
+            </div>
           </>
         )}
 
@@ -425,17 +447,19 @@ export const VideoToolUploader = () => {
             <div className={styles.formGroup}>
               <label htmlFor="quality" className={styles.label}>
                 Quality
-                {files.length > 0 &&
-                  imageDims &&
-                  ` ~${formatBytes(
-                    estimateOutputBytes(
-                      imageDims.w,
-                      imageDims.h,
-                      files.length,
-                      format,
-                      quality,
-                    ),
-                  )}`}
+                {format === "avif" && quality === 100
+                  ? " (lossless)"
+                  : files.length > 0 &&
+                    imageDims &&
+                    ` ~${formatBytes(
+                      estimateOutputBytes(
+                        imageDims.w,
+                        imageDims.h,
+                        files.length,
+                        format,
+                        quality,
+                      ),
+                    )}`}
               </label>
               <input
                 id="quality"

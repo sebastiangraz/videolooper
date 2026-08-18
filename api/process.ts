@@ -155,6 +155,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : "reverse";
       const fadeDuration = clamp(options.fadeDuration, 0, 10, 0.5);
       const startSecond = clamp(options.startSecond, 0, Number.MAX_SAFE_INTEGER, 0);
+      const quality = Math.round(clamp(options.quality, 1, 100, 75));
 
       const inputPath = path.join(workDir, "input.mp4");
       await downloadBlob(inputBlobUrls[0], inputPath);
@@ -163,7 +164,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         inputPath,
         technique,
         String(fadeDuration),
-        String(startSecond)
+        String(startSecond),
+        quality
       );
       outputName = `${base}_loop.mp4`;
       contentType = "video/mp4";
