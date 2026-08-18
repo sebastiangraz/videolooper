@@ -34,6 +34,10 @@ button,
   font-family: inherit;
   text-transform: inherit;
   font-size: 0.75em;
+  &:focus-within {
+    outline: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
+    outline-offset: 1.5px;
+  }
 }
 
 input[type="range"] {
@@ -109,8 +113,9 @@ input[type="range"] {
   background-repeat: repeat-x;
 }
 
-input[type="range"] .fileInput {
-  margin-bottom: 0.5em;
+.fileInput {
+  margin-block: 0.5em;
+  border-radius: 0.75em;
 }
 
 .fileInput::file-selector-button {
@@ -148,6 +153,10 @@ input[type="range"] .fileInput {
   &:hover {
     color: var(--fg);
   }
+  &:focus-within {
+    outline: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
+    outline-offset: 0;
+  }
 }
 
 .tabActive {
@@ -157,10 +166,19 @@ input[type="range"] .fileInput {
 
 .select {
   padding: 0.5em;
+  padding-right: 2.5em;
   border-radius: 0.75em;
   border: 1px solid var(--border);
-  background-color: var(--bg-1);
   margin-bottom: 0.5em;
+  /* The native indicator ignores padding, so draw our own chevron to control
+     its distance from the right edge. The stroke mirrors --fg, which a data-URI
+     SVG cannot read. */
+  appearance: none;
+  background-color: var(--bg-1);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='none' stroke='%234d3c208c' stroke-width='1.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1em center;
+  background-size: 0.7em auto;
 }
 
 .formGroup {
