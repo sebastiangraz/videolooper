@@ -93,6 +93,46 @@ describe("VideoToolUploader", () => {
     });
   });
 
+  it("accepts comma decimals in number fields", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "tiny.mp4", { type: "video/mp4" });
+
+    uploadMock.mockResolvedValue({
+      url: "https://store.public.blob.vercel-storage.com/tiny-abc.mp4",
+    });
+    const resultUrl = "https://store.public.blob.vercel-storage.com/results/tiny_loop-xyz.mp4";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (input === "/api/process" && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({ url: resultUrl, filename: "tiny_loop.mp4" }),
+          { status: 200 }
+        );
+      }
+      if (input === resultUrl) {
+        return new Response(new Blob(["video"], { type: "video/mp4" }), { status: 200 });
+      }
+      if (input === "/api/process" && init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      throw new Error(`Unexpected fetch: ${input}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<VideoToolUploader />);
+    await user.upload(screen.getByLabelText(/choose video/i), file);
+    fireEvent.change(screen.getByLabelText(/fade duration/i), { target: { value: "0,7" } });
+    fireEvent.change(screen.getByLabelText(/start second/i), { target: { value: "1.5" } });
+    await user.click(screen.getByRole("button", { name: /loop/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/done – tiny_loop\.mp4 downloaded/i)).toBeInTheDocument()
+    );
+    const processBody = JSON.parse(
+      (fetchMock.mock.calls.find(([, init]) => init?.method === "POST")?.[1]?.body as string) ?? "{}"
+    );
+    expect(processBody.options).toMatchObject({ fadeDuration: 0.7, startSecond: 1.5 });
+  });
+
   it("uploads images in filename order and requests an image sequence", async () => {
     const user = userEvent.setup();
     const fileB = new File(["00"], "b.png", { type: "image/png" });

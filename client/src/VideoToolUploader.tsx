@@ -75,6 +75,13 @@ function estimateOutputBytes(
   return pixels * frames * (bpp.min + (bpp.max - bpp.min) * t * t);
 }
 
+// Accept both "0.5" and "0,5". <input type="number"> rejects one or the
+// other depending on the browser locale (and reports "" for the rejected
+// one, which parsed to NaN), so decimal fields are text inputs parsed here.
+function parseDecimal(value: string): number {
+  return parseFloat(value.trim().replace(",", "."));
+}
+
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -86,9 +93,11 @@ export const VideoToolUploader = () => {
   const [busy, setBusy] = useState(false);
   const [tool, setTool] = useState<string>("loop");
   const [technique, setTechnique] = useState<string>("crossfade");
-  const [fadeDuration, setFadeDuration] = useState<number>(0.5);
-  const [startSecond, setStartSecond] = useState<number>(0);
-  const [frameDuration, setFrameDuration] = useState<number>(1);
+  // Decimal fields keep the raw text while typing ("0," is a valid prefix);
+  // parseDecimal converts them on submit.
+  const [fadeDuration, setFadeDuration] = useState<string>("0.5");
+  const [startSecond, setStartSecond] = useState<string>("0");
+  const [frameDuration, setFrameDuration] = useState<string>("1");
   const [format, setFormat] = useState<string>("mp4");
   const [quality, setQuality] = useState<number>(75);
   const [speed, setSpeed] = useState<number>(0);
@@ -150,15 +159,15 @@ export const VideoToolUploader = () => {
   };
 
   const handleFadeDurationChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFadeDuration(parseFloat(e.target.value));
+    setFadeDuration(e.target.value);
   };
 
   const handleStartSecondChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setStartSecond(parseFloat(e.target.value));
+    setStartSecond(e.target.value);
   };
 
   const handleFrameDurationChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFrameDuration(parseFloat(e.target.value));
+    setFrameDuration(e.target.value);
   };
 
   const handleFormatChange = (e: ChangeEvent<HTMLSelectElement>) => {
@@ -198,12 +207,24 @@ export const VideoToolUploader = () => {
       setMsg("Processing …");
       const payload =
         tool === "image-sequence"
-          ? { blobUrls, options: { frameDuration, format, quality } }
+          ? {
+              blobUrls,
+              options: {
+                frameDuration: parseDecimal(frameDuration),
+                format,
+                quality,
+              },
+            }
           : tool === "speed"
             ? { blobUrl: blobUrls[0], options: { speed } }
             : {
                 blobUrl: blobUrls[0],
-                options: { technique, fadeDuration, startSecond, quality },
+                options: {
+                  technique,
+                  fadeDuration: parseDecimal(fadeDuration),
+                  startSecond: parseDecimal(startSecond),
+                  quality,
+                },
               };
       const res = await fetch("/api/process", {
         method: "POST",
@@ -317,10 +338,8 @@ export const VideoToolUploader = () => {
                   </label>
                   <input
                     id="fadeDuration"
-                    type="number"
-                    min="0.1"
-                    max="5"
-                    step="0.1"
+                    type="text"
+                    inputMode="decimal"
                     value={fadeDuration}
                     onChange={handleFadeDurationChange}
                     className={styles.input}
@@ -334,10 +353,8 @@ export const VideoToolUploader = () => {
                   </label>
                   <input
                     id="startSecond"
-                    type="number"
-                    min="0"
-                    max={videoDuration > 0 ? videoDuration - fadeDuration : 30}
-                    step="0.5"
+                    type="text"
+                    inputMode="decimal"
                     value={startSecond}
                     onChange={handleStartSecondChange}
                     className={styles.input}
@@ -414,10 +431,8 @@ export const VideoToolUploader = () => {
               </label>
               <input
                 id="frameDuration"
-                type="number"
-                min="0.02"
-                max="10"
-                step="0.1"
+                type="text"
+                inputMode="decimal"
                 value={frameDuration}
                 onChange={handleFrameDurationChange}
                 className={styles.input}
