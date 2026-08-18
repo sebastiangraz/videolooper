@@ -3,7 +3,7 @@
   "devCommand": "npm run dev --workspace client -- --port $PORT",
   "outputDirectory": "client/dist",
   "rewrites": [
-    { "source": "/(loop|image-sequence|speed)", "destination": "/index.html" }
+    { "source": "/((?!api/|@)[^.]*)", "destination": "/index.html" }
   ],
   "functions": {
     "api/process.ts": {

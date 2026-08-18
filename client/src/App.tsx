@@ -42,24 +42,23 @@ const Layout = () => {
       </header>
 
       <main className={appStyles.main}>
-        <nav className={styles.container} aria-label="Video tool">
-          <div className={styles.tabs}>
-            {TOOLS.map((t) => (
-              <Link
-                key={t.value}
-                to="/$tool"
-                params={{ tool: t.value }}
-                className={styles.tab}
-                activeProps={{
-                  className: styles.tabActive,
-                  "aria-current": "page",
-                }}
-              >
-                {t.label}
-              </Link>
-            ))}
-          </div>
-        </nav>
+        <div className={styles.tabs}>
+          {TOOLS.map((t) => (
+            <Link
+              key={t.value}
+              to="/$tool"
+              params={{ tool: t.value }}
+              className={styles.tab}
+              activeProps={{
+                className: styles.tabActive,
+                "aria-current": "page",
+              }}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </div>
+
         <Outlet />
       </main>
     </div>

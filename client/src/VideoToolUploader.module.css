@@ -23,7 +23,7 @@
   box-shadow:
     1px 0 0 0 var(--border) inset,
     -1px 0 0 0 var(--border) inset,
-    0 1px 0 0 var(--border) inset;
+    0 1px 0 0 color-mix(in srgb, var(--fg) 6%, transparent) inset;
 }
 
 input,
@@ -126,12 +126,20 @@ input[type="range"] .fileInput {
 
 .tabs {
   display: flex;
-  gap: 0.25em;
+  flex-direction: row;
+  max-width: var(--width);
+  box-shadow:
+    1px 0 0 0 var(--border) inset,
+    -1px 0 0 0 var(--border) inset,
+    0 -1px 0 0 color-mix(in srgb, var(--fg) 6%, transparent) inset;
+  margin: 0 auto;
+  width: 92%;
+  gap: 0.5em;
+  padding-inline: 1em;
 }
 
 .tab {
-  padding: 0.5em 1em;
-  border-radius: 0.75em;
+  padding: 0.75em 0.2em;
   font-size: 0.75em;
   text-decoration: none;
   color: color-mix(in srgb, var(--fg) 55%, transparent);
@@ -144,8 +152,7 @@ input[type="range"] .fileInput {
 
 .tabActive {
   color: var(--fg);
-  background-color: var(--bg-1);
-  border-color: var(--border);
+  border-bottom: 1px solid var(--fg);
 }
 
 .select {
