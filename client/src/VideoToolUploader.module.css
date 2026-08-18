@@ -211,14 +211,8 @@ input[type="range"] {
 }
 
 .status {
-  background-color: var(--bg-2);
-  padding: 1em;
-  border-radius: 0.75em;
+  color: color-mix(in srgb, var(--fg) 80%, transparent);
   font-size: 0.65em;
-  box-shadow:
-    0 4px 12px -1px color-mix(in srgb, var(--fg) 7%, transparent),
-    0 2px 4px -1px color-mix(in srgb, var(--fg) 3%, transparent),
-    0 0 0 1px var(--border) inset;
 }
 
 .button:disabled {

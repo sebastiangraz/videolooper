@@ -239,7 +239,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
       const downloadName =
         resultName || files[0].name.replace(/\.[^.]+$/, "") + "_loop.mp4";
 
-      setMsg("Downloading result …");
+      setMsg(`Downloading ${downloadName}`);
       // Result lives on Blob storage (cross-origin), where the anchor
       // `download` attribute is ignored — fetch to an object URL instead.
       const fileRes = await fetch(url);
@@ -258,8 +258,6 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       }).catch(() => {});
-
-      setMsg(`Done – ${downloadName} downloaded`);
     } catch (err: unknown) {
       console.error(err);
       setMsg((err as Error).message);
@@ -479,9 +477,9 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
           disabled={!files.length || busy}
           className={styles.button}
         >
-          {busy ? "Working …" : currentTool.actionLabel}
+          {busy ? status && status : currentTool.actionLabel}
         </button>
-        {status && <p className={styles.status}>{status}</p>}
+        {/* {status && <p className={styles.status}>{status}</p>} */}
       </div>
     </>
   );
