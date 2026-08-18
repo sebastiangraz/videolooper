@@ -13,7 +13,7 @@ const ffprobePath: string = require("@ffprobe-installer/ffprobe").path;
 const VideoProcessor = require("./_lib/video-processor");
 
 // Mirrored in client/src/VideoToolUploader.tsx (TOOLS / TECHNIQUES / FORMATS)
-const VALID_TOOLS = ["loop", "image-sequence", "speed"];
+const VALID_TOOLS = ["loop", "sequence", "speed"];
 const VALID_TECHNIQUES = ["reverse", "crossfade"];
 const VALID_FORMATS = ["mp4", "gif", "avif"];
 const CONTENT_TYPES: Record<string, string> = {
@@ -33,7 +33,12 @@ function isBlobUrl(url: unknown): url is string {
   }
 }
 
-function clamp(value: unknown, min: number, max: number, fallback: number): number {
+function clamp(
+  value: unknown,
+  min: number,
+  max: number,
+  fallback: number,
+): number {
   const n = typeof value === "number" ? value : parseFloat(String(value));
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, n));
@@ -46,7 +51,7 @@ async function downloadBlob(url: string, destPath: string): Promise<void> {
   }
   await pipeline(
     Readable.fromWeb(download.body as import("stream/web").ReadableStream),
-    fs.createWriteStream(destPath)
+    fs.createWriteStream(destPath),
   );
 }
 
@@ -76,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   let inputBlobUrls: string[];
-  if (tool === "image-sequence") {
+  if (tool === "sequence") {
     if (
       !Array.isArray(blobUrls) ||
       blobUrls.length < 1 ||
@@ -109,10 +114,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let outputName: string;
     let contentType: string;
 
-    if (tool === "image-sequence") {
+    if (tool === "sequence") {
       const frameDuration = clamp(options.frameDuration, 0.02, 10, 1);
-      const format = VALID_FORMATS.includes(options.format) ? options.format : "mp4";
-      const quality = Math.round(clamp(options.quality, 1, 100, 75));
+      const format = VALID_FORMATS.includes(options.format)
+        ? options.format
+        : "mp4";
+      const quality = Math.round(clamp(options.quality, 1, 100, 100));
 
       const imagePaths: string[] = [];
       for (let i = 0; i < inputBlobUrls.length; i++) {
@@ -122,7 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ext = /^\.\w+$/.test(urlExt) ? urlExt : ".png";
         const imagePath = path.join(
           workDir,
-          `src_${String(i + 1).padStart(4, "0")}${ext}`
+          `src_${String(i + 1).padStart(4, "0")}${ext}`,
         );
         await downloadBlob(inputBlobUrls[i], imagePath);
         imagePaths.push(imagePath);
@@ -133,7 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         workDir,
         frameDuration,
         format,
-        quality
+        quality,
       );
       outputName = `${base}_video.${format}`;
       contentType = CONTENT_TYPES[format];
@@ -154,7 +161,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? options.technique
         : "reverse";
       const fadeDuration = clamp(options.fadeDuration, 0, 10, 0.5);
-      const startSecond = clamp(options.startSecond, 0, Number.MAX_SAFE_INTEGER, 0);
+      const startSecond = clamp(
+        options.startSecond,
+        0,
+        Number.MAX_SAFE_INTEGER,
+        0,
+      );
+      const quality = Math.round(clamp(options.quality, 1, 100, 100));
 
       const inputPath = path.join(workDir, "input.mp4");
       await downloadBlob(inputBlobUrls[0], inputPath);
@@ -163,17 +176,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         inputPath,
         technique,
         String(fadeDuration),
-        String(startSecond)
+        String(startSecond),
+        quality,
       );
       outputName = `${base}_loop.mp4`;
       contentType = "video/mp4";
     }
 
-    const result = await put(`results/${outputName}`, fs.createReadStream(outputPath), {
-      access: "public",
-      contentType,
-      addRandomSuffix: true,
-    });
+    const result = await put(
+      `results/${outputName}`,
+      fs.createReadStream(outputPath),
+      {
+        access: "public",
+        contentType,
+        addRandomSuffix: true,
+      },
+    );
 
     return res.status(200).json({
       url: result.url,
@@ -182,9 +200,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err) {
     console.error("Processing error:", err);
-    return res
-      .status(500)
-      .json({ error: err instanceof Error ? err.message : "Processing failed" });
+    return res.status(500).json({
+      error: err instanceof Error ? err.message : "Processing failed",
+    });
   } finally {
     for (const url of inputBlobUrls) {
       await del(url).catch(() => {});

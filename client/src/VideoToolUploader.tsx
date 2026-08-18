@@ -6,8 +6,9 @@ const VIDEO_ACCEPT =
   "video/*,.avi,.mkv,.mov,.webm,.m4v,.wmv,.mpg,.mpeg,.3gp,.ts";
 
 // Available tools. Mirrored in api/process.ts (VALID_TOOLS); each tool's
-// extra options are the conditional blocks in the JSX below.
-const TOOLS = [
+// extra options are the conditional blocks in the JSX below. Also drives
+// the routes and tab navigation in App.tsx.
+export const TOOLS = [
   {
     value: "loop",
     label: "Loop",
@@ -19,14 +20,14 @@ const TOOLS = [
     actionLabel: "Loop",
   },
   {
-    value: "image-sequence",
-    label: "Image sequence",
+    value: "sequence",
+    label: "Sequence",
     input: { accept: "image/*", multiple: true, pickerLabel: "choose images" },
     actionLabel: "Create video",
   },
   {
     value: "speed",
-    label: "Video speed",
+    label: "Speed",
     input: {
       accept: VIDEO_ACCEPT,
       multiple: false,
@@ -75,22 +76,32 @@ function estimateOutputBytes(
   return pixels * frames * (bpp.min + (bpp.max - bpp.min) * t * t);
 }
 
+// Accept both "0.5" and "0,5". <input type="number"> rejects one or the
+// other depending on the browser locale (and reports "" for the rejected
+// one, which parsed to NaN), so decimal fields are text inputs parsed here.
+function parseDecimal(value: string): number {
+  return parseFloat(value.trim().replace(",", "."));
+}
+
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-export const VideoToolUploader = () => {
+// The route remounts this component (keyed by tool) on tab change, so all
+// state — picked files included — resets, like the old dropdown reset did.
+export const VideoToolUploader = ({ tool }: { tool: string }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [status, setMsg] = useState<string>("");
   const [busy, setBusy] = useState(false);
-  const [tool, setTool] = useState<string>("loop");
   const [technique, setTechnique] = useState<string>("crossfade");
-  const [fadeDuration, setFadeDuration] = useState<number>(0.5);
-  const [startSecond, setStartSecond] = useState<number>(0);
-  const [frameDuration, setFrameDuration] = useState<number>(1);
+  // Decimal fields keep the raw text while typing ("0," is a valid prefix);
+  // parseDecimal converts them on submit.
+  const [fadeDuration, setFadeDuration] = useState<string>("0.5");
+  const [startSecond, setStartSecond] = useState<string>("0");
+  const [frameDuration, setFrameDuration] = useState<string>("1");
   const [format, setFormat] = useState<string>("mp4");
-  const [quality, setQuality] = useState<number>(75);
+  const [quality, setQuality] = useState<number>(100);
   const [speed, setSpeed] = useState<number>(0);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [imageDims, setImageDims] = useState<{ w: number; h: number } | null>(
@@ -137,28 +148,20 @@ export const VideoToolUploader = () => {
     }
   };
 
-  const handleToolChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setTool(e.target.value);
-    // A file picked for one tool is rarely valid for another
-    setFiles([]);
-    setVideoDuration(0);
-    setImageDims(null);
-  };
-
   const handleTechniqueChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setTechnique(e.target.value);
   };
 
   const handleFadeDurationChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFadeDuration(parseFloat(e.target.value));
+    setFadeDuration(e.target.value);
   };
 
   const handleStartSecondChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setStartSecond(parseFloat(e.target.value));
+    setStartSecond(e.target.value);
   };
 
   const handleFrameDurationChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFrameDuration(parseFloat(e.target.value));
+    setFrameDuration(e.target.value);
   };
 
   const handleFormatChange = (e: ChangeEvent<HTMLSelectElement>) => {
@@ -197,13 +200,25 @@ export const VideoToolUploader = () => {
 
       setMsg("Processing …");
       const payload =
-        tool === "image-sequence"
-          ? { blobUrls, options: { frameDuration, format, quality } }
+        tool === "sequence"
+          ? {
+              blobUrls,
+              options: {
+                frameDuration: parseDecimal(frameDuration),
+                format,
+                quality,
+              },
+            }
           : tool === "speed"
             ? { blobUrl: blobUrls[0], options: { speed } }
             : {
                 blobUrl: blobUrls[0],
-                options: { technique, fadeDuration, startSecond },
+                options: {
+                  technique,
+                  fadeDuration: parseDecimal(fadeDuration),
+                  startSecond: parseDecimal(startSecond),
+                  quality,
+                },
               };
       const res = await fetch("/api/process", {
         method: "POST",
@@ -224,7 +239,7 @@ export const VideoToolUploader = () => {
       const downloadName =
         resultName || files[0].name.replace(/\.[^.]+$/, "") + "_loop.mp4";
 
-      setMsg("Downloading result …");
+      setMsg(`Downloading ${downloadName}`);
       // Result lives on Blob storage (cross-origin), where the anchor
       // `download` attribute is ignored — fetch to an object URL instead.
       const fileRes = await fetch(url);
@@ -243,8 +258,6 @@ export const VideoToolUploader = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       }).catch(() => {});
-
-      setMsg(`Done – ${downloadName} downloaded`);
     } catch (err: unknown) {
       console.error(err);
       setMsg((err as Error).message);
@@ -256,28 +269,7 @@ export const VideoToolUploader = () => {
   return (
     <>
       <div className={styles.container}>
-        <div className={styles.formGroup}>
-          <label htmlFor="tool" className={styles.label}>
-            Video Tool
-          </label>
-          <select
-            id="tool"
-            value={tool}
-            onChange={handleToolChange}
-            className={styles.select}
-            disabled={busy}
-          >
-            {TOOLS.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <input
-          // Remount on tool change so the browser's file display resets
-          key={tool}
           aria-label={currentTool.input.pickerLabel}
           type="file"
           accept={currentTool.input.accept}
@@ -317,10 +309,8 @@ export const VideoToolUploader = () => {
                   </label>
                   <input
                     id="fadeDuration"
-                    type="number"
-                    min="0.1"
-                    max="5"
-                    step="0.1"
+                    type="text"
+                    inputMode="decimal"
                     value={fadeDuration}
                     onChange={handleFadeDurationChange}
                     className={styles.input}
@@ -334,10 +324,8 @@ export const VideoToolUploader = () => {
                   </label>
                   <input
                     id="startSecond"
-                    type="number"
-                    min="0"
-                    max={videoDuration > 0 ? videoDuration - fadeDuration : 30}
-                    step="0.5"
+                    type="text"
+                    inputMode="decimal"
                     value={startSecond}
                     onChange={handleStartSecondChange}
                     className={styles.input}
@@ -346,6 +334,28 @@ export const VideoToolUploader = () => {
                 </div>
               </>
             )}
+
+            <div className={styles.formGroup}>
+              <label htmlFor="quality" className={styles.label}>
+                Quality
+              </label>
+              <input
+                id="quality"
+                type="range"
+                min={1}
+                max={100}
+                step="1"
+                value={quality}
+                onChange={handleQualityChange}
+                className={styles.input}
+                disabled={busy}
+                style={
+                  {
+                    "--ratio": (quality - 1) / (100 - 1),
+                  } as CSSProperties
+                }
+              />
+            </div>
           </>
         )}
 
@@ -384,7 +394,7 @@ export const VideoToolUploader = () => {
           </div>
         )}
 
-        {tool === "image-sequence" && (
+        {tool === "sequence" && (
           <>
             <div className={styles.formGroup}>
               <label htmlFor="frameDuration" className={styles.label}>
@@ -392,10 +402,8 @@ export const VideoToolUploader = () => {
               </label>
               <input
                 id="frameDuration"
-                type="number"
-                min="0.02"
-                max="10"
-                step="0.1"
+                type="text"
+                inputMode="decimal"
                 value={frameDuration}
                 onChange={handleFrameDurationChange}
                 className={styles.input}
@@ -425,17 +433,19 @@ export const VideoToolUploader = () => {
             <div className={styles.formGroup}>
               <label htmlFor="quality" className={styles.label}>
                 Quality
-                {files.length > 0 &&
-                  imageDims &&
-                  ` ~${formatBytes(
-                    estimateOutputBytes(
-                      imageDims.w,
-                      imageDims.h,
-                      files.length,
-                      format,
-                      quality,
-                    ),
-                  )}`}
+                {format === "avif" && quality === 100
+                  ? " (lossless)"
+                  : files.length > 0 &&
+                    imageDims &&
+                    ` ~${formatBytes(
+                      estimateOutputBytes(
+                        imageDims.w,
+                        imageDims.h,
+                        files.length,
+                        format,
+                        quality,
+                      ),
+                    )}`}
               </label>
               <input
                 id="quality"
@@ -467,9 +477,9 @@ export const VideoToolUploader = () => {
           disabled={!files.length || busy}
           className={styles.button}
         >
-          {busy ? "Working …" : currentTool.actionLabel}
+          {busy ? status && status : currentTool.actionLabel}
         </button>
-        {status && <p className={styles.status}>{status}</p>}
+        {/* {status && <p className={styles.status}>{status}</p>} */}
       </div>
     </>
   );

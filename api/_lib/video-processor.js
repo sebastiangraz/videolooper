@@ -4,7 +4,7 @@ const path = require("path");
 
 /**
  * Cross-platform video tools: seamless loops (reverse / crossfade) and
- * image-sequence assembly (mp4 / gif / avif), all pure-Node ffmpeg.
+ * sequence assembly (mp4 / gif / avif), all pure-Node ffmpeg.
  */
 class VideoProcessor {
   constructor(ffmpegPath, ffprobePath) {
@@ -12,11 +12,19 @@ class VideoProcessor {
     this.ffprobe = ffprobePath;
   }
 
+  // x264 crf: 0 best – 51 worst; quality 100 → 1 (visually lossless — true
+  // lossless x264 forces the High 4:4:4 profile most players reject),
+  // quality 1 → 35.
+  static x264Crf(quality) {
+    return String(Math.max(1, Math.round(35 - (quality / 100) * 34)));
+  }
+
   async createLoop(
     inputFile,
     technique = "reverse",
     fadeDuration = "0.5",
-    startSecond = "0"
+    startSecond = "0",
+    quality = 100,
   ) {
     const outputFile = `${inputFile}_loop.mp4`;
 
@@ -28,16 +36,19 @@ class VideoProcessor {
       // Check if input file exists
       await fs.access(inputFile);
 
+      const crf = VideoProcessor.x264Crf(quality);
+
       if (technique === "crossfade") {
         await this.createCrossfadeLoop(
           inputFile,
           outputFile,
           fadeDuration,
-          startSecond
+          startSecond,
+          crf,
         );
       } else {
         // Default to reverse technique
-        await this.createReverseLoop(inputFile, outputFile);
+        await this.createReverseLoop(inputFile, outputFile, crf);
       }
 
       // Verify output file was created
@@ -51,19 +62,21 @@ class VideoProcessor {
     }
   }
 
-  async createReverseLoop(inputFile, outputFile) {
+  async createReverseLoop(inputFile, outputFile, crf = "18") {
     console.log("Creating simple reversed loop...");
 
     const tempDir = path.join(
       path.dirname(inputFile),
-      `tmp_loop_${Date.now()}`
+      `tmp_loop_${Date.now()}`,
     );
     await fs.mkdir(tempDir, { recursive: true });
 
     try {
       const reverseFile = path.join(tempDir, "reverse.mp4");
 
-      // Create reversed video
+      // Create reversed video. The reversed half gets encoded again in the
+      // concat below, so keep this intermediate near-lossless to avoid
+      // generation loss.
       await this.runFFmpeg([
         "-y",
         "-i",
@@ -74,6 +87,8 @@ class VideoProcessor {
         "libx264",
         "-preset",
         "fast",
+        "-crf",
+        "6",
         reverseFile,
       ]);
 
@@ -93,7 +108,7 @@ class VideoProcessor {
         "-preset",
         "fast",
         "-crf",
-        "22",
+        crf,
         "-pix_fmt",
         "yuv420p",
         outputFile,
@@ -104,7 +119,13 @@ class VideoProcessor {
     }
   }
 
-  async createCrossfadeLoop(inputFile, outputFile, fadeDuration, startSecond) {
+  async createCrossfadeLoop(
+    inputFile,
+    outputFile,
+    fadeDuration,
+    startSecond,
+    crf = "18",
+  ) {
     console.log("Creating seamless loop with crossfade technique...");
     console.log(`Using fade duration: ${fadeDuration} seconds`);
     console.log(`Starting from: ${startSecond} seconds`);
@@ -120,7 +141,7 @@ class VideoProcessor {
       throw new Error(
         `Fade duration (${fadeDuration}) must be less than half the video duration (${
           duration / 2
-        })`
+        })`,
       );
     }
 
@@ -135,7 +156,8 @@ class VideoProcessor {
           inputFile,
           outputFile,
           startSecond,
-          duration
+          duration,
+          crf,
         );
       }
       return;
@@ -144,7 +166,7 @@ class VideoProcessor {
     // Create crossfade loop
     const tempDir = path.join(
       path.dirname(inputFile),
-      `tmp_loop_${Date.now()}`
+      `tmp_loop_${Date.now()}`,
     );
     await fs.mkdir(tempDir, { recursive: true });
 
@@ -153,7 +175,8 @@ class VideoProcessor {
       const endClip = path.join(tempDir, "end.mp4");
       const crossfadeClip = path.join(tempDir, "crossfade.mp4");
 
-      // Extract start and end segments
+      // Extract start and end segments. These are re-encoded again by the
+      // xfade step, so keep them near-lossless to avoid generation loss.
       const endStartTime = duration - parseFloat(fadeDuration);
 
       await this.runFFmpeg([
@@ -166,6 +189,8 @@ class VideoProcessor {
         "libx264",
         "-preset",
         "fast",
+        "-crf",
+        "6",
         "-r",
         fps.toString(),
         "-pix_fmt",
@@ -183,6 +208,8 @@ class VideoProcessor {
         "libx264",
         "-preset",
         "fast",
+        "-crf",
+        "6",
         "-r",
         fps.toString(),
         "-pix_fmt",
@@ -190,7 +217,8 @@ class VideoProcessor {
         endClip,
       ]);
 
-      // Create crossfade
+      // Create crossfade. This clip (and the segments below) land in the
+      // output unchanged via stream-copy concat, so they use the user crf.
       await this.runFFmpeg([
         "-y",
         "-i",
@@ -205,6 +233,8 @@ class VideoProcessor {
         "libx264",
         "-preset",
         "fast",
+        "-crf",
+        crf,
         "-r",
         fps.toString(),
         "-pix_fmt",
@@ -231,6 +261,8 @@ class VideoProcessor {
           "libx264",
           "-preset",
           "fast",
+          "-crf",
+          crf,
           "-r",
           fps.toString(),
           "-pix_fmt",
@@ -241,7 +273,8 @@ class VideoProcessor {
         await this.concatenateVideos(
           [mainClip, crossfadeClip],
           outputFile,
-          tempDir
+          tempDir,
+          crf,
         );
       } else {
         // Custom start: segment after start + crossfade + segment before start
@@ -266,6 +299,8 @@ class VideoProcessor {
             "libx264",
             "-preset",
             "fast",
+            "-crf",
+            crf,
             "-r",
             fps.toString(),
             "-pix_fmt",
@@ -290,6 +325,8 @@ class VideoProcessor {
             "libx264",
             "-preset",
             "fast",
+            "-crf",
+            crf,
             "-r",
             fps.toString(),
             "-pix_fmt",
@@ -299,7 +336,7 @@ class VideoProcessor {
           segments.push(seg3);
         }
 
-        await this.concatenateVideos(segments, outputFile, tempDir);
+        await this.concatenateVideos(segments, outputFile, tempDir, crf);
       }
     } finally {
       // Clean up temp directory
@@ -307,9 +344,15 @@ class VideoProcessor {
     }
   }
 
-  async createImageSequenceVideo(imagePaths, workDir, frameDuration, format, quality = 75) {
+  async createImageSequenceVideo(
+    imagePaths,
+    workDir,
+    frameDuration,
+    format,
+    quality = 100,
+  ) {
     console.log(
-      `Assembling ${imagePaths.length} images into ${format} (quality ${quality})...`
+      `Assembling ${imagePaths.length} images into ${format} (quality ${quality})...`,
     );
 
     const outputFile = path.join(workDir, `output.${format}`);
@@ -344,7 +387,7 @@ class VideoProcessor {
     for (let i = 0; i < imagePaths.length; i++) {
       const framePath = path.join(
         framesDir,
-        `norm_${String(i + 1).padStart(4, "0")}.png`
+        `norm_${String(i + 1).padStart(4, "0")}.png`,
       );
       await this.runFFmpeg([
         "-y",
@@ -364,7 +407,10 @@ class VideoProcessor {
     if (format === "gif") {
       // Quality drives the palette size; at high quality use a fresh
       // palette per frame (much better color, larger file).
-      const colors = Math.max(16, Math.min(256, Math.round((quality / 100) * 256)));
+      const colors = Math.max(
+        16,
+        Math.min(256, Math.round((quality / 100) * 256)),
+      );
       const perFrame = quality >= 80;
       const vf = perFrame
         ? `split[a][b];[a]palettegen=stats_mode=single:max_colors=${colors}[p];[b][p]paletteuse=new=1:dither=sierra2_4a`
@@ -382,39 +428,72 @@ class VideoProcessor {
         outputFile,
       ]);
     } else if (format === "avif") {
-      // libaom crf: 0 best – 63 worst; quality 100 → 10, quality 1 → ~55.
-      // Slow the encoder down a notch at high quality.
-      const crf = Math.round(55 - (quality / 100) * 45);
-      const cpuUsed = quality >= 80 ? "6" : "8";
-      await this.runFFmpeg([
-        "-y",
-        "-framerate",
-        framerate,
-        "-i",
-        pattern,
-        "-c:v",
-        "libaom-av1",
-        "-crf",
-        String(crf),
-        "-b:v",
-        "0",
-        "-cpu-used",
-        cpuUsed,
-        "-row-mt",
-        "1",
-        "-threads",
-        "0",
-        "-pix_fmt",
-        "yuv420p",
-        "-f",
-        "avif",
-        outputFile,
-      ]);
+      if (quality >= 100) {
+        // Truly lossless: planar RGB (gbrp) skips the RGB→YUV rounding and
+        // chroma subsampling, and aom's lossless mode skips quantization.
+        // Verified bit-exact against the source frames (PSNR = inf).
+        await this.runFFmpeg([
+          "-y",
+          "-framerate",
+          framerate,
+          "-i",
+          pattern,
+          "-c:v",
+          "libaom-av1",
+          "-crf",
+          "0",
+          "-b:v",
+          "0",
+          "-aom-params",
+          "lossless=1",
+          "-cpu-used",
+          "6",
+          "-row-mt",
+          "1",
+          "-threads",
+          "0",
+          "-pix_fmt",
+          "gbrp",
+          "-f",
+          "avif",
+          outputFile,
+        ]);
+      } else {
+        // libaom crf: 0 best – 63 worst; quality 99 → 1, quality 1 → 62.
+        // Slow the encoder down a notch and keep full chroma resolution at
+        // high quality (yuv420p halves color detail regardless of crf).
+        const crf = Math.round(63 * (1 - quality / 100));
+        const cpuUsed = quality >= 80 ? "6" : "8";
+        const pixFmt = quality >= 90 ? "yuv444p" : "yuv420p";
+        await this.runFFmpeg([
+          "-y",
+          "-framerate",
+          framerate,
+          "-i",
+          pattern,
+          "-c:v",
+          "libaom-av1",
+          "-crf",
+          String(crf),
+          "-b:v",
+          "0",
+          "-cpu-used",
+          cpuUsed,
+          "-row-mt",
+          "1",
+          "-threads",
+          "0",
+          "-pix_fmt",
+          pixFmt,
+          "-f",
+          "avif",
+          outputFile,
+        ]);
+      }
     } else {
       // mp4: constant 30fps output (frames duplicated by the fps filter)
       // so every player handles very low source frame rates.
-      // x264 crf: 0 best – 51 worst; quality 100 → 12, quality 1 → ~35.
-      const crf = Math.round(35 - (quality / 100) * 23);
+      const crf = VideoProcessor.x264Crf(quality);
       await this.runFFmpeg([
         "-y",
         "-framerate",
@@ -428,7 +507,7 @@ class VideoProcessor {
         "-preset",
         "fast",
         "-crf",
-        String(crf),
+        crf,
         "-movflags",
         "+faststart",
         outputFile,
@@ -471,10 +550,16 @@ class VideoProcessor {
     return outputFile;
   }
 
-  async reorderSegments(inputFile, outputFile, startSecond, duration) {
+  async reorderSegments(
+    inputFile,
+    outputFile,
+    startSecond,
+    duration,
+    crf = "18",
+  ) {
     const tempDir = path.join(
       path.dirname(inputFile),
-      `tmp_loop_${Date.now()}`
+      `tmp_loop_${Date.now()}`,
     );
     await fs.mkdir(tempDir, { recursive: true });
 
@@ -509,14 +594,15 @@ class VideoProcessor {
       await this.concatenateVideos(
         [afterPart, beforePart],
         outputFile,
-        tempDir
+        tempDir,
+        crf,
       );
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
   }
 
-  async concatenateVideos(videoFiles, outputFile, tempDir) {
+  async concatenateVideos(videoFiles, outputFile, tempDir, crf = "18") {
     const listFile = path.join(tempDir, "concat_list.txt");
     const listContent = videoFiles
       .map((f) => `file '${path.basename(f)}'`)
@@ -542,7 +628,7 @@ class VideoProcessor {
           "copy",
           path.resolve(outputFile), // Use absolute path for output
         ],
-        { cwd: tempDir }
+        { cwd: tempDir },
       );
     } catch (error) {
       console.log("Fast concatenation failed, trying with re-encoding...");
@@ -559,11 +645,13 @@ class VideoProcessor {
           "libx264",
           "-preset",
           "fast",
+          "-crf",
+          crf,
           "-pix_fmt",
           "yuv420p",
           path.resolve(outputFile), // Use absolute path for output
         ],
-        { cwd: tempDir }
+        { cwd: tempDir },
       );
     }
   }
