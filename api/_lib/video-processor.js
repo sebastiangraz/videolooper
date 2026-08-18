@@ -4,7 +4,7 @@ const path = require("path");
 
 /**
  * Cross-platform video tools: seamless loops (reverse / crossfade) and
- * image-sequence assembly (mp4 / gif / avif), all pure-Node ffmpeg.
+ * sequence assembly (mp4 / gif / avif), all pure-Node ffmpeg.
  */
 class VideoProcessor {
   constructor(ffmpegPath, ffprobePath) {
@@ -24,7 +24,7 @@ class VideoProcessor {
     technique = "reverse",
     fadeDuration = "0.5",
     startSecond = "0",
-    quality = 75
+    quality = 75,
   ) {
     const outputFile = `${inputFile}_loop.mp4`;
 
@@ -44,7 +44,7 @@ class VideoProcessor {
           outputFile,
           fadeDuration,
           startSecond,
-          crf
+          crf,
         );
       } else {
         // Default to reverse technique
@@ -67,7 +67,7 @@ class VideoProcessor {
 
     const tempDir = path.join(
       path.dirname(inputFile),
-      `tmp_loop_${Date.now()}`
+      `tmp_loop_${Date.now()}`,
     );
     await fs.mkdir(tempDir, { recursive: true });
 
@@ -124,7 +124,7 @@ class VideoProcessor {
     outputFile,
     fadeDuration,
     startSecond,
-    crf = "18"
+    crf = "18",
   ) {
     console.log("Creating seamless loop with crossfade technique...");
     console.log(`Using fade duration: ${fadeDuration} seconds`);
@@ -141,7 +141,7 @@ class VideoProcessor {
       throw new Error(
         `Fade duration (${fadeDuration}) must be less than half the video duration (${
           duration / 2
-        })`
+        })`,
       );
     }
 
@@ -157,7 +157,7 @@ class VideoProcessor {
           outputFile,
           startSecond,
           duration,
-          crf
+          crf,
         );
       }
       return;
@@ -166,7 +166,7 @@ class VideoProcessor {
     // Create crossfade loop
     const tempDir = path.join(
       path.dirname(inputFile),
-      `tmp_loop_${Date.now()}`
+      `tmp_loop_${Date.now()}`,
     );
     await fs.mkdir(tempDir, { recursive: true });
 
@@ -274,7 +274,7 @@ class VideoProcessor {
           [mainClip, crossfadeClip],
           outputFile,
           tempDir,
-          crf
+          crf,
         );
       } else {
         // Custom start: segment after start + crossfade + segment before start
@@ -344,9 +344,15 @@ class VideoProcessor {
     }
   }
 
-  async createImageSequenceVideo(imagePaths, workDir, frameDuration, format, quality = 75) {
+  async createImageSequenceVideo(
+    imagePaths,
+    workDir,
+    frameDuration,
+    format,
+    quality = 75,
+  ) {
     console.log(
-      `Assembling ${imagePaths.length} images into ${format} (quality ${quality})...`
+      `Assembling ${imagePaths.length} images into ${format} (quality ${quality})...`,
     );
 
     const outputFile = path.join(workDir, `output.${format}`);
@@ -381,7 +387,7 @@ class VideoProcessor {
     for (let i = 0; i < imagePaths.length; i++) {
       const framePath = path.join(
         framesDir,
-        `norm_${String(i + 1).padStart(4, "0")}.png`
+        `norm_${String(i + 1).padStart(4, "0")}.png`,
       );
       await this.runFFmpeg([
         "-y",
@@ -401,7 +407,10 @@ class VideoProcessor {
     if (format === "gif") {
       // Quality drives the palette size; at high quality use a fresh
       // palette per frame (much better color, larger file).
-      const colors = Math.max(16, Math.min(256, Math.round((quality / 100) * 256)));
+      const colors = Math.max(
+        16,
+        Math.min(256, Math.round((quality / 100) * 256)),
+      );
       const perFrame = quality >= 80;
       const vf = perFrame
         ? `split[a][b];[a]palettegen=stats_mode=single:max_colors=${colors}[p];[b][p]paletteuse=new=1:dither=sierra2_4a`
@@ -541,10 +550,16 @@ class VideoProcessor {
     return outputFile;
   }
 
-  async reorderSegments(inputFile, outputFile, startSecond, duration, crf = "18") {
+  async reorderSegments(
+    inputFile,
+    outputFile,
+    startSecond,
+    duration,
+    crf = "18",
+  ) {
     const tempDir = path.join(
       path.dirname(inputFile),
-      `tmp_loop_${Date.now()}`
+      `tmp_loop_${Date.now()}`,
     );
     await fs.mkdir(tempDir, { recursive: true });
 
@@ -580,7 +595,7 @@ class VideoProcessor {
         [afterPart, beforePart],
         outputFile,
         tempDir,
-        crf
+        crf,
       );
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
@@ -613,7 +628,7 @@ class VideoProcessor {
           "copy",
           path.resolve(outputFile), // Use absolute path for output
         ],
-        { cwd: tempDir }
+        { cwd: tempDir },
       );
     } catch (error) {
       console.log("Fast concatenation failed, trying with re-encoding...");
@@ -636,7 +651,7 @@ class VideoProcessor {
           "yuv420p",
           path.resolve(outputFile), // Use absolute path for output
         ],
-        { cwd: tempDir }
+        { cwd: tempDir },
       );
     }
   }

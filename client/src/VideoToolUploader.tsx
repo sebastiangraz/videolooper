@@ -20,14 +20,14 @@ export const TOOLS = [
     actionLabel: "Loop",
   },
   {
-    value: "image-sequence",
-    label: "Image sequence",
+    value: "sequence",
+    label: "Sequence",
     input: { accept: "image/*", multiple: true, pickerLabel: "choose images" },
     actionLabel: "Create video",
   },
   {
     value: "speed",
-    label: "Video speed",
+    label: "Speed",
     input: {
       accept: VIDEO_ACCEPT,
       multiple: false,
@@ -200,7 +200,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
 
       setMsg("Processing …");
       const payload =
-        tool === "image-sequence"
+        tool === "sequence"
           ? {
               blobUrls,
               options: {
@@ -396,7 +396,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
           </div>
         )}
 
-        {tool === "image-sequence" && (
+        {tool === "sequence" && (
           <>
             <div className={styles.formGroup}>
               <label htmlFor="frameDuration" className={styles.label}>
