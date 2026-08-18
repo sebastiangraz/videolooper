@@ -126,7 +126,7 @@ describe("VideoToolUploader", () => {
         technique: "crossfade",
         fadeDuration: 0.5,
         startSecond: 0,
-        quality: 75,
+        quality: 100,
       },
     });
   });
@@ -251,7 +251,7 @@ describe("VideoToolUploader", () => {
         "https://store.public.blob.vercel-storage.com/a.png",
         "https://store.public.blob.vercel-storage.com/b.png",
       ],
-      options: { frameDuration: 1, format: "gif", quality: 75 },
+      options: { frameDuration: 1, format: "gif", quality: 100 },
     });
   });
 

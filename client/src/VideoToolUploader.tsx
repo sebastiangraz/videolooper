@@ -101,7 +101,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
   const [startSecond, setStartSecond] = useState<string>("0");
   const [frameDuration, setFrameDuration] = useState<string>("1");
   const [format, setFormat] = useState<string>("mp4");
-  const [quality, setQuality] = useState<number>(75);
+  const [quality, setQuality] = useState<number>(100);
   const [speed, setSpeed] = useState<number>(0);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [imageDims, setImageDims] = useState<{ w: number; h: number } | null>(

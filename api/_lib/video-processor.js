@@ -24,7 +24,7 @@ class VideoProcessor {
     technique = "reverse",
     fadeDuration = "0.5",
     startSecond = "0",
-    quality = 75,
+    quality = 100,
   ) {
     const outputFile = `${inputFile}_loop.mp4`;
 
@@ -349,7 +349,7 @@ class VideoProcessor {
     workDir,
     frameDuration,
     format,
-    quality = 75,
+    quality = 100,
   ) {
     console.log(
       `Assembling ${imagePaths.length} images into ${format} (quality ${quality})...`,

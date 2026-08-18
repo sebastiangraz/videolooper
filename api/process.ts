@@ -119,7 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const format = VALID_FORMATS.includes(options.format)
         ? options.format
         : "mp4";
-      const quality = Math.round(clamp(options.quality, 1, 100, 75));
+      const quality = Math.round(clamp(options.quality, 1, 100, 100));
 
       const imagePaths: string[] = [];
       for (let i = 0; i < inputBlobUrls.length; i++) {
@@ -167,7 +167,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         Number.MAX_SAFE_INTEGER,
         0,
       );
-      const quality = Math.round(clamp(options.quality, 1, 100, 75));
+      const quality = Math.round(clamp(options.quality, 1, 100, 100));
 
       const inputPath = path.join(workDir, "input.mp4");
       await downloadBlob(inputBlobUrls[0], inputPath);
