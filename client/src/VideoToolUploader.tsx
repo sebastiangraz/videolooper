@@ -6,8 +6,9 @@ const VIDEO_ACCEPT =
   "video/*,.avi,.mkv,.mov,.webm,.m4v,.wmv,.mpg,.mpeg,.3gp,.ts";
 
 // Available tools. Mirrored in api/process.ts (VALID_TOOLS); each tool's
-// extra options are the conditional blocks in the JSX below.
-const TOOLS = [
+// extra options are the conditional blocks in the JSX below. Also drives
+// the routes and tab navigation in App.tsx.
+export const TOOLS = [
   {
     value: "loop",
     label: "Loop",
@@ -87,11 +88,12 @@ function formatBytes(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-export const VideoToolUploader = () => {
+// The route remounts this component (keyed by tool) on tab change, so all
+// state — picked files included — resets, like the old dropdown reset did.
+export const VideoToolUploader = ({ tool }: { tool: string }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [status, setMsg] = useState<string>("");
   const [busy, setBusy] = useState(false);
-  const [tool, setTool] = useState<string>("loop");
   const [technique, setTechnique] = useState<string>("crossfade");
   // Decimal fields keep the raw text while typing ("0," is a valid prefix);
   // parseDecimal converts them on submit.
@@ -144,14 +146,6 @@ export const VideoToolUploader = () => {
       };
       img.src = URL.createObjectURL(first);
     }
-  };
-
-  const handleToolChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setTool(e.target.value);
-    // A file picked for one tool is rarely valid for another
-    setFiles([]);
-    setVideoDuration(0);
-    setImageDims(null);
   };
 
   const handleTechniqueChange = (e: ChangeEvent<HTMLSelectElement>) => {
@@ -277,28 +271,7 @@ export const VideoToolUploader = () => {
   return (
     <>
       <div className={styles.container}>
-        <div className={styles.formGroup}>
-          <label htmlFor="tool" className={styles.label}>
-            Video Tool
-          </label>
-          <select
-            id="tool"
-            value={tool}
-            onChange={handleToolChange}
-            className={styles.select}
-            disabled={busy}
-          >
-            {TOOLS.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <input
-          // Remount on tool change so the browser's file display resets
-          key={tool}
           aria-label={currentTool.input.pickerLabel}
           type="file"
           accept={currentTool.input.accept}

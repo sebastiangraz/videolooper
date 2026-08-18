@@ -124,6 +124,30 @@ input[type="range"] .fileInput {
   color: currentColor;
 }
 
+.tabs {
+  display: flex;
+  gap: 0.25em;
+}
+
+.tab {
+  padding: 0.5em 1em;
+  border-radius: 0.75em;
+  font-size: 0.75em;
+  text-decoration: none;
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
+  border: 1px solid transparent;
+
+  &:hover {
+    color: var(--fg);
+  }
+}
+
+.tabActive {
+  color: var(--fg);
+  background-color: var(--bg-1);
+  border-color: var(--border);
+}
+
 .select {
   padding: 0.5em;
   border-radius: 0.75em;

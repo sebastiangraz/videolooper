@@ -27,7 +27,7 @@ videotools/
 
 ## Tools
 
-Each tool in the "Video Tool" dropdown shows its own extra options; adding a tool means one entry in `TOOLS` (client) + `VALID_TOOLS` (server) and a conditional options block in the component.
+Each tool is a tab with its own URL (`/loop`, `/image-sequence`, `/speed` — TanStack Router; `/` and unknown paths redirect to `/loop`); adding a tool means one entry in `TOOLS` (client) + `VALID_TOOLS` (server) and a conditional options block in the component — routes and tabs are generated from `TOOLS`, but a new tool path must also be added to the rewrite in `vercel.json` (kept as an explicit list — a catch-all rewrite swallows Vite's module URLs under `vercel dev` and blanks the page).
 
 - **Loop**: seamless video loop. Options: `technique` — `reverse` (plays the video forward then reversed, no further options) or `crossfade` (adds `fadeDuration` in seconds and `startSecond` to choose the first frame, for thumbnails/social media) — and `quality` (1–100 slider, maps to the x264 CRF of the output; intermediate clips are always encoded near-lossless so quality is only spent once). Output is mp4, which is never fully lossless: quality 100 uses CRF 1 (visually lossless) because true lossless x264 forces a profile most players can't decode.
 - **Video speed**: speed a clip up or slow it down. Option: `speed` slider from −3 to +3 (0 = unchanged, center). The value is a signed ratio: +1 plays 2× faster (10 s → 5 s), −1 plays 2× slower (10 s → 20 s), ±3 → 4×. Audio is dropped (as in the other tools).
