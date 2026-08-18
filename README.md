@@ -52,7 +52,7 @@ No system ffmpeg is required — binaries install with `npm install` (the right 
 ## Development
 
 ```bash
-npm run dev   # vercel dev: serves the Vite client + api/ functions on one origin
+npm run local   # vercel dev: serves the Vite client + api/ functions on one origin
 ```
 
 Note: the `onUploadCompleted` webhook warning on localhost is expected and harmless (Blob can't call back into a local URL).
