@@ -554,7 +554,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
           {busy ? status && status : currentTool.actionLabel}
           {busy && <div className={styles.spinner} />}
         </button>
-        {/* {status && <p className={styles.status}>{status}</p>} */}
+
         <div className={styles.credits}>
           <a href="https://graz.io" target="_blank">
             G
