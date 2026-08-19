@@ -334,6 +334,7 @@ button,
   font-size: 8.5px;
   padding-inline: 0.175em;
   min-height: var(--quantize);
+  font-feature-settings: "tnum" on;
   letter-spacing: 0.05em;
   color: color-mix(in srgb, var(--fg) 50%, transparent);
 }

@@ -453,8 +453,8 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                 {speed === 0
                   ? "unchanged"
                   : speed > 0
-                    ? `${(1 + speed).toFixed(1)}× faster`
-                    : `${(1 - speed).toFixed(1)}× slower`}
+                    ? `${(1 + speed).toFixed(1)}x faster`
+                    : `${(1 - speed).toFixed(1)}x slower`}
                 {videoDuration > 0 &&
                   ` – ~${(videoDuration / speedMultiplier).toFixed(1)}s`}
                 )
