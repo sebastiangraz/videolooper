@@ -299,11 +299,11 @@ button,
     cursor: not-allowed;
   }
   &:first-child {
-    padding: 0 1em 0 1.125em;
+    padding: 0 0.8rem 0 1rem;
     border-right: 1px solid var(--border);
   }
   &:last-child {
-    padding: 0 1.125em 0 1em;
+    padding: 0 1rem 0 0.8rem;
     border-left: 1px solid var(--border);
   }
 }
