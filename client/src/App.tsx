@@ -8,6 +8,7 @@ import {
   type RouterHistory,
 } from "@tanstack/react-router";
 import { PreviewCard } from "@base-ui/react/preview-card";
+import { useRef } from "react";
 import { VideoToolUploader, TOOLS } from "./VideoToolUploader";
 import appStyles from "./index.module.css";
 import styles from "./VideoToolUploader.module.css";
@@ -32,13 +33,29 @@ const Logo = () => {
   );
 };
 
+// Pulls the popup back up over its anchor so it sits centred on the anchor
+// instead of below it
+const centerOverAnchor = ({
+  anchor,
+  positioner,
+}: {
+  anchor: { height: number };
+  positioner: { height: number };
+}) => -(anchor.height + positioner.height) / 2;
+
 const Layout = () => {
+  // Every preview card is positioned over the title rather than its own tab, so
+  // the card never moves regardless of which tab is hovered
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
+
   return (
     <div className={appStyles.app}>
       <header className={appStyles.header}>
         <div className={appStyles.headerContent}>
           <Logo />
-          <h1 className={appStyles.title}>Video tools</h1>
+          <h1 ref={titleRef} className={appStyles.title}>
+            Video tools
+          </h1>
         </div>
       </header>
 
@@ -65,9 +82,15 @@ const Layout = () => {
               <PreviewCard.Portal>
                 <PreviewCard.Positioner
                   className={styles.previewPositioner}
+                  anchor={titleRef}
                   side="bottom"
-                  align="start"
-                  sideOffset={6}
+                  align="end"
+                  sideOffset={centerOverAnchor}
+                  collisionAvoidance={{
+                    side: "none",
+                    align: "none",
+                    fallbackAxisSide: "none",
+                  }}
                 >
                   <PreviewCard.Popup className={styles.previewCard}>
                     {t.description}

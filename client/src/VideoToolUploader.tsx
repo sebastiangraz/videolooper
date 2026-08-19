@@ -16,8 +16,7 @@ export const TOOLS = [
   {
     value: "loop",
     label: "Loop",
-    description:
-      "Turns a video into a seamless loop via crossfade or forward & reverse playback.",
+    description: "Seamlessly loop a video.",
     input: {
       accept: VIDEO_ACCEPT,
       multiple: false,
@@ -352,7 +351,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
           <>
             <div className={styles.formGroup}>
               <label htmlFor="technique" className={styles.label}>
-                Looping Technique
+                Technique
               </label>
               <OptionMenu
                 id="technique"
@@ -367,7 +366,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
               <>
                 <div className={styles.formGroup}>
                   <label htmlFor="fadeDuration" className={styles.label}>
-                    Fade Duration (seconds)
+                    Fade Duration
                   </label>
                   <DecimalField
                     id="fadeDuration"
@@ -381,7 +380,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
 
                 <div className={styles.formGroup}>
                   <label htmlFor="startSecond" className={styles.label}>
-                    Start Second (for thumbnails)
+                    Start Second
                   </label>
                   <DecimalField
                     id="startSecond"
@@ -470,7 +469,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
           <>
             <div className={styles.formGroup}>
               <label htmlFor="frameDuration" className={styles.label}>
-                Time per frame (seconds)
+                Time per frame
               </label>
               <DecimalField
                 id="frameDuration"
