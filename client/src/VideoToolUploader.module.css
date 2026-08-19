@@ -48,7 +48,8 @@ button,
 }
 
 /* Base UI slider parts. thumbAlignment="edge" keeps the thumb inside the
-   control like a native range input, so the old fill math carries over. */
+   control like a native range input; Slider.Indicator draws the fill, with
+   its position inset-adjusted by Base UI to stay under the thumb's centre. */
 .slider {
   display: flex;
   flex-direction: column;
@@ -57,16 +58,6 @@ button,
 
 .sliderControl {
   --thumb-size: 0.75em;
-  /* 0 → 1 progress, set inline from the slider's value */
-  --ratio: 0;
-  /* Where the fill grows from: 0% for a left-anchored slider, 50% for a
-     centre-anchored one (set inline, e.g. the speed slider). */
-  --fill-origin: 0%;
-  /* Offset by half a thumb so the fill edge sits under the thumb's centre
-     instead of drifting at the extremes. */
-  --fill: calc(
-    var(--thumb-size) / 2 + (100% - var(--thumb-size)) * var(--ratio)
-  );
   display: flex;
   align-items: center;
   width: 100%;
@@ -77,14 +68,12 @@ button,
 .sliderTrack {
   position: relative;
   width: 100%;
-  height: min(0.9px, 1px); /* hack to prevent subpixel bugs */
-  background: linear-gradient(
-    to right,
-    var(--border) 0 min(var(--fill-origin), var(--fill)),
-    var(--fg) min(var(--fill-origin), var(--fill))
-      max(var(--fill-origin), var(--fill)),
-    var(--border) max(var(--fill-origin), var(--fill)) 100%
-  );
+  height: 1px;
+  background-color: var(--border);
+}
+
+.sliderIndicator {
+  background-color: var(--fg);
 }
 
 .sliderThumb {

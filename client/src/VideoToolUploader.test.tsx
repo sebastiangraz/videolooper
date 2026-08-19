@@ -171,7 +171,7 @@ describe("VideoToolUploader", () => {
     fireEvent.change(screen.getByLabelText(/fade duration/i), {
       target: { value: `0${sep}7` },
     });
-    fireEvent.change(screen.getByLabelText(/start second/i), {
+    fireEvent.change(screen.getByLabelText(/start at/i), {
       target: { value: `1${sep}5` },
     });
     await user.click(screen.getByRole("button", { name: /^loop$/i }));

@@ -194,6 +194,16 @@ const DecimalField = ({
   </NumberField.Root>
 );
 
+// Centre-anchored fill for the signed speed slider: Slider.Indicator spans
+// 0 → value by default; this respans it between the track centre and the
+// thumb. --start-position is the thumb's inset-adjusted position, set inline
+// by the Indicator itself, and user style wins the per-property merge.
+const CENTERED_INDICATOR: CSSProperties = {
+  insetInlineStart: "min(50%, var(--start-position))",
+  width:
+    "max(calc(var(--start-position) - 50%), calc(50% - var(--start-position)))",
+};
+
 // The route remounts this component (keyed by tool) on tab change, so all
 // state — picked files included — resets, like the old dropdown reset did.
 export const VideoToolUploader = ({ tool }: { tool: string }) => {
@@ -417,15 +427,9 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                 className={styles.slider}
               >
                 <Slider.Label className={styles.label}>Quality</Slider.Label>
-                <Slider.Control
-                  className={styles.sliderControl}
-                  style={
-                    {
-                      "--ratio": (quality - 1) / (100 - 1),
-                    } as CSSProperties
-                  }
-                >
+                <Slider.Control className={styles.sliderControl}>
                   <Slider.Track className={styles.sliderTrack}>
+                    <Slider.Indicator className={styles.sliderIndicator} />
                     <Slider.Thumb className={styles.sliderThumb} />
                   </Slider.Track>
                 </Slider.Control>
@@ -458,16 +462,12 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                 )
               </Slider.Label>
               <div className={styles.sliderTicks}>
-                <Slider.Control
-                  className={styles.sliderControl}
-                  style={
-                    {
-                      "--ratio": (speed + 3) / 6,
-                      "--fill-origin": "50%",
-                    } as CSSProperties
-                  }
-                >
+                <Slider.Control className={styles.sliderControl}>
                   <Slider.Track className={styles.sliderTrack}>
+                    <Slider.Indicator
+                      className={styles.sliderIndicator}
+                      style={CENTERED_INDICATOR}
+                    />
                     <Slider.Thumb className={styles.sliderThumb} />
                   </Slider.Track>
                 </Slider.Control>
@@ -532,15 +532,9 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                         ),
                       )}`}
                 </Slider.Label>
-                <Slider.Control
-                  className={styles.sliderControl}
-                  style={
-                    {
-                      "--ratio": (quality - 1) / (100 - 1),
-                    } as CSSProperties
-                  }
-                >
+                <Slider.Control className={styles.sliderControl}>
                   <Slider.Track className={styles.sliderTrack}>
+                    <Slider.Indicator className={styles.sliderIndicator} />
                     <Slider.Thumb className={styles.sliderThumb} />
                   </Slider.Track>
                 </Slider.Control>
