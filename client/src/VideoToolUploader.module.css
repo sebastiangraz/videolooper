@@ -1,3 +1,10 @@
+:root {
+  --raised:
+    0 4px 6px -1px color-mix(in srgb, var(--fg) 20%, transparent),
+    0 2px 4px -1px color-mix(in srgb, var(--fg) 20%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent);
+}
+
 .container {
   display: flex;
   flex-direction: column;
@@ -215,10 +222,7 @@ button,
   color: currentColor;
   background-color: var(--bg-1);
   border-radius: 0.75rem;
-  box-shadow:
-    0 4px 6px -1px color-mix(in srgb, var(--fg) 20%, transparent),
-    0 2px 4px -1px color-mix(in srgb, var(--fg) 20%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent);
+  box-shadow: var(--raised);
   outline: none;
 }
 
@@ -267,15 +271,10 @@ button,
 .previewCard {
   box-sizing: border-box;
   max-width: 18rem;
-  padding: 0.75em 1em;
+  padding: 1em 0em;
   font-size: 0.65em;
   color: color-mix(in srgb, var(--fg) 70%, transparent);
-  background-color: var(--bg-1);
-  border-radius: 0.75rem;
-  box-shadow:
-    0 4px 6px -1px color-mix(in srgb, var(--fg) 20%, transparent),
-    0 2px 4px -1px color-mix(in srgb, var(--fg) 20%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent);
+  background-color: var(--bg);
   outline: none;
   transition:
     opacity 150ms,
@@ -349,10 +348,6 @@ button,
   background-color: var(--fg);
   color: var(--bg);
   border: none;
-  box-shadow:
-    0 4px 6px -1px color-mix(in srgb, var(--fg) 20%, transparent),
-    0 2px 4px -1px color-mix(in srgb, var(--fg) 20%, transparent),
-    0 0 0 1px var(--border) inset;
   cursor: pointer;
   &:hover {
     background-color: color-mix(in srgb, var(--fg) 80%, transparent);
