@@ -380,7 +380,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
             </div>
 
             {technique === "crossfade" && (
-              <>
+              <div className={styles.horizontal}>
                 <div className={styles.formGroup}>
                   <label htmlFor="fadeDuration" className={styles.label}>
                     Fade Duration
@@ -408,7 +408,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                     disabled={busy}
                   />
                 </div>
-              </>
+              </div>
             )}
 
             <div className={styles.formGroup}>

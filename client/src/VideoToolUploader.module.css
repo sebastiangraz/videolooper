@@ -314,6 +314,15 @@ button,
   }
 }
 
+.horizontal {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5em;
+  & > * {
+    flex: 1;
+  }
+}
+
 .formGroup {
   display: flex;
   flex-direction: column;
@@ -322,6 +331,7 @@ button,
 
 .label {
   font-size: 8.5px;
+  padding-inline: 0.175em;
   min-height: var(--quantize);
   letter-spacing: 0.05em;
   color: color-mix(in srgb, var(--fg) 50%, transparent);
