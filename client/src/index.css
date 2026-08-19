@@ -63,7 +63,7 @@
   );
   --raised:
     0 4px 6px -1px var(--shadow), 0 2px 4px -1px var(--shadow),
-    0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent);
+    0 0 0 1px var(--border-subtle) inset;
 }
 
 /* The switch inverts the theme relative to the system preference; no
@@ -79,11 +79,9 @@
 @media (prefers-color-scheme: dark) {
   :root[data-theme-invert] {
     color-scheme: light;
-  }
-  :root {
     --raised:
       0 4px 6px -1px var(--shadow), 0 2px 4px -1px var(--shadow),
-      0 0 0 1px var(--border) inset;
+      0 0 0 1px var(--border-subtle);
   }
 }
 
