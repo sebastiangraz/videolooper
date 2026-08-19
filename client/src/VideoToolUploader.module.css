@@ -3,6 +3,7 @@
   flex-direction: column;
   gap: 1.5rem;
   max-width: var(--width);
+  min-height: var(--quantize);
   padding: 1em;
   margin: 0 auto;
   width: 92%;
@@ -24,6 +25,7 @@ button,
   font-family: inherit;
   text-transform: inherit;
   font-size: 10px;
+  min-height: var(--quantize);
   &:focus-visible {
     outline: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
     outline-offset: 2px;
@@ -119,6 +121,7 @@ button,
 
 .tabs {
   display: flex;
+  min-height: var(--quantize);
   flex-direction: row;
   max-width: var(--width);
   border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
@@ -130,6 +133,7 @@ button,
 }
 
 .tab {
+  min-height: var(--quantize);
   padding: 1.5em 0.2em 0.5em 0.2em;
   font-size: 10px;
   text-decoration: none;
@@ -307,6 +311,7 @@ button,
 
 .label {
   font-size: 8.5px;
+  min-height: var(--quantize);
   letter-spacing: 0.05em;
   color: color-mix(in srgb, var(--fg) 50%, transparent);
 }

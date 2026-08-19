@@ -36,7 +36,8 @@
 
 .logo {
   width: 2em;
-
+  height: var(--quantize);
+  display: flex;
   svg {
     overflow: visible;
   }

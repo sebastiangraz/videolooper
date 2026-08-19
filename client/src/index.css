@@ -32,6 +32,7 @@
   --font-sans: "Styrene B", system-ui, sans-serif;
   --font-logo: "GGX", "Styrene B", system-ui, sans-serif;
   --font-mono: monospace, menlo, monaco;
+  --quantize: calc-size(auto, round(up, size, 1px));
 
   --bg: #eeeae3;
   --bg-1: color-mix(in srgb, var(--bg), #fff 20%);
