@@ -101,10 +101,7 @@ const Layout = () => {
           ))}
         </div>
 
-        {/* Named for the view transition in index.module.css */}
-        <div className={appStyles.toolPanel}>
-          <Outlet />
-        </div>
+        <Outlet />
       </main>
     </div>
   );

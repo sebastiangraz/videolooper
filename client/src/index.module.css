@@ -34,48 +34,6 @@
   flex-grow: 1;
 }
 
-.toolPanel {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  view-transition-name: tool-panel;
-}
-
-::view-transition-group(tool-panel) {
-  animation-duration: 100ms;
-}
-
-/* Tools differ in height, so draw each snapshot at its natural size instead of
-   letting it stretch to the group box while that box resizes */
-::view-transition-old(tool-panel),
-::view-transition-new(tool-panel) {
-  height: 100%;
-  object-fit: none;
-  object-position: top center;
-}
-
-::view-transition-old(tool-panel) {
-  animation: toolLeave 200ms ease both;
-}
-
-::view-transition-new(tool-panel) {
-  animation: toolEnter 200ms ease both;
-}
-
-@keyframes toolLeave {
-  to {
-    opacity: 0;
-    translate: 0 -0.5em;
-  }
-}
-
-@keyframes toolEnter {
-  from {
-    opacity: 0;
-    translate: 0 -0.5em;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
   ::view-transition-old(*),

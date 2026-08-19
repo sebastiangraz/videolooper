@@ -17,6 +17,40 @@
   border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
 }
 
+/* On tool change only the contents animate. The containers stay unnamed, so
+   they are captured in the root snapshot instead, where their inline borders
+   are identical before and after and therefore never appear to move or fade.
+   match-element gives every child a unique snapshot name, so old and new
+   children never pair up and each simply leaves or enters. */
+.container > * {
+  view-transition-name: match-element;
+  view-transition-class: panelItem;
+}
+
+/* :global is required: CSS modules would otherwise hash the class inside the
+   pseudo-element while leaving the view-transition-class value above alone */
+::view-transition-old(*:global(.panelItem)) {
+  animation: panelItemLeave 200ms ease both;
+}
+
+::view-transition-new(*:global(.panelItem)) {
+  animation: panelItemEnter 200ms 70ms ease both;
+}
+
+@keyframes panelItemLeave {
+  to {
+    opacity: 0;
+    translate: 0 -0.5em;
+  }
+}
+
+@keyframes panelItemEnter {
+  from {
+    opacity: 0;
+    translate: 0 -0.5em;
+  }
+}
+
 input,
 select,
 button,
