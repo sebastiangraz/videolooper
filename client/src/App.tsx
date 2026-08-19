@@ -7,6 +7,7 @@ import {
   redirect,
   type RouterHistory,
 } from "@tanstack/react-router";
+import { PreviewCard } from "@base-ui/react/preview-card";
 import { VideoToolUploader, TOOLS } from "./VideoToolUploader";
 import appStyles from "./index.module.css";
 import styles from "./VideoToolUploader.module.css";
@@ -44,18 +45,36 @@ const Layout = () => {
       <main className={appStyles.main}>
         <div className={styles.tabs}>
           {TOOLS.map((t) => (
-            <Link
-              key={t.value}
-              to="/$tool"
-              params={{ tool: t.value }}
-              className={styles.tab}
-              activeProps={{
-                className: styles.tabActive,
-                "aria-current": "page",
-              }}
-            >
-              {t.label}
-            </Link>
+            <PreviewCard.Root key={t.value}>
+              <PreviewCard.Trigger
+                delay={500}
+                render={
+                  <Link
+                    to="/$tool"
+                    params={{ tool: t.value }}
+                    className={styles.tab}
+                    activeProps={{
+                      className: styles.tabActive,
+                      "aria-current": "page",
+                    }}
+                  />
+                }
+              >
+                {t.label}
+              </PreviewCard.Trigger>
+              <PreviewCard.Portal>
+                <PreviewCard.Positioner
+                  className={styles.previewPositioner}
+                  side="bottom"
+                  align="start"
+                  sideOffset={6}
+                >
+                  <PreviewCard.Popup className={styles.previewCard}>
+                    {t.description}
+                  </PreviewCard.Popup>
+                </PreviewCard.Positioner>
+              </PreviewCard.Portal>
+            </PreviewCard.Root>
           ))}
         </div>
 
