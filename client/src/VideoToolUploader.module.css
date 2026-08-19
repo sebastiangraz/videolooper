@@ -284,6 +284,7 @@ button,
   border-radius: 0.25rem;
   border: none;
   text-transform: none;
+  font-feature-settings: "tnum" on;
   user-select: none;
   background-color: transparent;
   &:focus-visible {
