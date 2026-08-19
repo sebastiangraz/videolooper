@@ -199,43 +199,34 @@ const DecimalField = ({
     allowWheelScrub={true}
     disabled={disabled}
   >
-    <NumberField.Group className={styles.numberGroup}>
-      <NumberField.Decrement className={styles.numberButton}>
-        −
-      </NumberField.Decrement>
-      {/* The input stays wrapped in the trigger even while `preview` is
-          empty (only the portal is conditional): swapping the plain input
-          for a wrapped one remounts the input element, and the native wheel
-          listener NumberField.Root attached to the original node would die
-          with it, breaking allowWheelScrub. */}
-      <PreviewCard.Root>
-        {/* The trigger generates its own id, which would clobber the
-            one NumberField gives the input and break the external
-            <label htmlFor>; passing it explicitly wins the merge. */}
-        <PreviewCard.Trigger
-          id={id}
-          delay={200}
-          render={<NumberField.Input className={styles.numberInput} />}
-        />
-        {preview && (
-          <PreviewCard.Portal>
-            <PreviewCard.Positioner
-              className={styles.previewPositioner}
-              side="top"
-              align="end"
-              sideOffset={8}
-            >
-              <PreviewCard.Popup className={styles.previewCard}>
-                {preview}
-              </PreviewCard.Popup>
-            </PreviewCard.Positioner>
-          </PreviewCard.Portal>
-        )}
-      </PreviewCard.Root>
-      <NumberField.Increment className={styles.numberButton}>
-        +
-      </NumberField.Increment>
-    </NumberField.Group>
+    <PreviewCard.Root>
+      <PreviewCard.Trigger
+        delay={200}
+        render={<NumberField.Group className={styles.numberGroup} />}
+      >
+        <NumberField.Decrement className={styles.numberButton}>
+          −
+        </NumberField.Decrement>
+        <NumberField.Input className={styles.numberInput} />
+        <NumberField.Increment className={styles.numberButton}>
+          +
+        </NumberField.Increment>
+      </PreviewCard.Trigger>
+      {preview && (
+        <PreviewCard.Portal>
+          <PreviewCard.Positioner
+            className={styles.previewPositioner}
+            side="top"
+            align="center"
+            sideOffset={8}
+          >
+            <PreviewCard.Popup className={styles.previewCard}>
+              {preview}
+            </PreviewCard.Popup>
+          </PreviewCard.Positioner>
+        </PreviewCard.Portal>
+      )}
+    </PreviewCard.Root>
   </NumberField.Root>
 );
 

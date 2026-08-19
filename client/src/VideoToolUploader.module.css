@@ -280,6 +280,7 @@ button,
 .numberInput {
   flex: 1;
   min-width: 0;
+  width: 100%;
   padding: 0.5em 0.75em;
   border-radius: 0.25rem;
   border: none;
@@ -331,6 +332,10 @@ button,
   gap: 0.5em;
   & > * {
     flex: 1;
+  }
+  @media (max-width: 480px) {
+    gap: 1.5rem;
+    flex-direction: column;
   }
 }
 
