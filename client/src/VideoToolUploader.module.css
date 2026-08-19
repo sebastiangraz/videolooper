@@ -1,7 +1,7 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 1em;
+  gap: 1.5rem;
   max-width: var(--width);
   padding: 1em;
   margin: 0 auto;
@@ -14,9 +14,9 @@
     flex: 1;
   }
   /* If the container has exactly two children, reduce the gap */
-  &:has(> :nth-child(2):last-child) {
+  /* &:has(> :nth-child(2):last-child) {
     gap: 0.25em;
-  }
+  } */
 }
 
 .container + .container {
@@ -35,20 +35,22 @@ button,
   text-transform: inherit;
   font-size: 0.75em;
   &:focus-visible {
-    outline: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
-    outline-offset: 1.5px;
+    outline: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
+    outline-offset: -2px;
   }
 }
 
-input[type="range"] {
-  width: 100%;
-  padding: 0;
-  margin: 0;
-  border: none;
-  background-color: transparent;
-  appearance: none;
-  --thumb-size: 1em;
-  /* 0 → 1 progress, set inline from the input's value */
+/* Base UI slider parts. thumbAlignment="edge" keeps the thumb inside the
+   control like a native range input, so the old fill math carries over. */
+.slider {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.sliderControl {
+  --thumb-size: 0.75em;
+  /* 0 → 1 progress, set inline from the slider's value */
   --ratio: 0;
   /* Where the fill grows from: 0% for a left-anchored slider, 50% for a
      centre-anchored one (set inline, e.g. the speed slider). */
@@ -58,25 +60,32 @@ input[type="range"] {
   --fill: calc(
     var(--thumb-size) / 2 + (100% - var(--thumb-size)) * var(--ratio)
   );
-  &::-webkit-slider-runnable-track {
-    height: min(0.9px, 1px); /* hack to prevent subpixel bugs */
-    background: linear-gradient(
-      to right,
-      var(--border) 0 min(var(--fill-origin), var(--fill)),
-      var(--fg) min(var(--fill-origin), var(--fill))
-        max(var(--fill-origin), var(--fill)),
-      var(--border) max(var(--fill-origin), var(--fill)) 100%
-    );
-  }
-  &::-webkit-slider-thumb {
-    width: var(--thumb-size);
-    height: var(--thumb-size);
-    border-radius: 50%;
-    background-color: red;
-    cursor: pointer;
-    position: relative;
-    top: calc(-0.5em - 1px);
-  }
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--thumb-size);
+  cursor: pointer;
+}
+
+.sliderTrack {
+  position: relative;
+  width: 100%;
+  height: min(0.9px, 1px); /* hack to prevent subpixel bugs */
+  background: linear-gradient(
+    to right,
+    var(--border) 0 min(var(--fill-origin), var(--fill)),
+    var(--fg) min(var(--fill-origin), var(--fill))
+      max(var(--fill-origin), var(--fill)),
+    var(--border) max(var(--fill-origin), var(--fill)) 100%
+  );
+}
+
+.sliderThumb {
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  border-radius: 50%;
+  background-color: var(--fg);
+  cursor: pointer;
 }
 
 /* Detent marks overlaying a range slider, sitting on top of the track.
@@ -84,11 +93,11 @@ input[type="range"] {
    track is inset half a thumb on each side. */
 .sliderTicks {
   position: relative;
-  width: calc(100% - 2px);
+  width: 100%;
   --minor-ticks: 60;
   --major-ticks: 6;
-  /* half the thumb: 1em at the input's 0.75em font-size */
-  --tick-inset: calc((0.75em / 2) + 1px);
+  /* half the thumb (--thumb-size on .sliderControl) */
+  --tick-inset: calc((0.75rem / 2) - 1px);
 }
 
 .sliderTicks::before {
@@ -96,8 +105,8 @@ input[type="range"] {
   position: absolute;
   left: var(--tick-inset);
   right: var(--tick-inset);
-  bottom: calc(50% + 1px);
-  height: 6px;
+  top: calc(50% + 1px);
+  height: 11px;
 
   pointer-events: none;
   /* whole-number detents (6px, solid) over step detents (4px, subtle) */
@@ -167,9 +176,10 @@ input[type="range"] {
 .select {
   padding: 0.5em;
   padding-right: 2.5em;
-  border-radius: 0.75em;
+  padding-left: 1em;
+  border-radius: 0.75rem;
+  min-height: 2rem;
   border: 1px solid var(--border);
-  margin-bottom: 0.5em;
   /* The native indicator ignores padding, so draw our own chevron to control
      its distance from the right edge. The stroke mirrors --fg, which a data-URI
      SVG cannot read. */
@@ -181,11 +191,120 @@ input[type="range"] {
   background-size: 0.7em auto;
 }
 
+/* Button-specific tweaks when .select styles a Base UI Menu.Trigger */
+.menuTrigger {
+  text-align: left;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.menuPositioner {
+  z-index: 10;
+  outline: none;
+}
+
+.menuPopup {
+  box-sizing: border-box;
+  min-width: var(--anchor-width);
+  padding: 0.25em;
+  font-size: 0.75em;
+  color: currentColor;
+  background-color: var(--bg-1);
+  border-radius: 0.75rem;
+  box-shadow:
+    0 4px 6px -1px color-mix(in srgb, var(--fg) 20%, transparent),
+    0 2px 4px -1px color-mix(in srgb, var(--fg) 20%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent);
+  outline: none;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0.5em 0.75em 0.5em 0.5em;
+  border-radius: calc(0.5rem + 1px);
+  outline: none;
+  cursor: default;
+
+  &[data-highlighted] {
+    background-color: color-mix(in srgb, var(--fg) 8%, transparent);
+  }
+}
+
+/* Dot marking the selected option; kept mounted so every item reserves the
+   same space and labels stay aligned */
+.menuItemIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.75em;
+
+  &::before {
+    content: "";
+    width: 0.4em;
+    height: 0.4em;
+    border-radius: 50%;
+    background-color: var(--fg);
+    opacity: 0;
+  }
+
+  &[data-checked]::before {
+    opacity: 1;
+  }
+}
+
+/* Base UI NumberField: stepper buttons flanking the input, framed like the
+   old .input text field */
+.numberGroup {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background-color: var(--bg-1);
+  min-height: 2rem;
+}
+
+.numberInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5em 0.75em;
+  border-radius: 0.25rem;
+  border: none;
+  background-color: transparent;
+}
+
+.numberButton {
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  color: color-mix(in srgb, var(--fg) 60%, transparent);
+  text-box: trim-both ex alphabetic;
+  &:hover {
+    color: var(--fg);
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  &:first-child {
+    padding: 0 1em 0 1.125em;
+    border-right: 1px solid var(--border);
+  }
+  &:last-child {
+    padding: 0 1.125em 0 1em;
+    border-left: 1px solid var(--border);
+  }
+}
+
 .formGroup {
   display: flex;
   flex-direction: column;
   gap: 0.5em;
-  margin-bottom: 0.5em;
 }
 
 .label {
@@ -218,13 +337,4 @@ input[type="range"] {
 .button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-}
-
-.input {
-  padding: 0.5em;
-  border-radius: 0.75em;
-  border: 1px solid var(--border);
-  background-color: var(--bg-1);
-  margin-bottom: 0.5em;
-  width: 100%;
 }
