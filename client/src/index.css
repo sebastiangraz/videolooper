@@ -13,6 +13,10 @@ body {
   --fg: #4d3c20;
   --border: color-mix(in srgb, var(--fg) 20%, transparent);
   --width: 32em;
+  --raised:
+    0 4px 6px -1px color-mix(in srgb, var(--fg) 20%, transparent),
+    0 2px 4px -1px color-mix(in srgb, var(--fg) 20%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent);
 }
 
 html,

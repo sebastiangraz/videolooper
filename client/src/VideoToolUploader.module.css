@@ -1,10 +1,3 @@
-:root {
-  --raised:
-    0 4px 6px -1px color-mix(in srgb, var(--fg) 20%, transparent),
-    0 2px 4px -1px color-mix(in srgb, var(--fg) 20%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent);
-}
-
 .container {
   display: flex;
   flex-direction: column;
