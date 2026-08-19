@@ -66,17 +66,24 @@
     0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent);
 }
 
-/* The switch inverts the theme relative to the system preference;
-   unchecked always means "follow the system" */
+/* The switch inverts the theme relative to the system preference; no
+   attribute always means "follow the system". The attribute is restored
+   from localStorage by an inline script in index.html and toggled by the
+   theme switch, so the choice survives navigation and reloads. */
 @media (prefers-color-scheme: light) {
-  :root:has(#theme-switch:checked) {
+  :root[data-theme-invert] {
     color-scheme: dark;
   }
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:has(#theme-switch:checked) {
+  :root[data-theme-invert] {
     color-scheme: light;
+  }
+  :root {
+    --raised:
+      0 4px 6px -1px var(--shadow), 0 2px 4px -1px var(--shadow),
+      0 0 0 1px var(--border) inset;
   }
 }
 

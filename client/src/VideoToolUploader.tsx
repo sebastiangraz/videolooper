@@ -665,8 +665,20 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
           <label className={styles.themeSwitch}>
             <input
               type="checkbox"
-              id="theme-switch"
               aria-label="Toggle dark mode"
+              defaultChecked={document.documentElement.hasAttribute(
+                "data-theme-invert",
+              )}
+              onChange={(e) => {
+                document.documentElement.toggleAttribute(
+                  "data-theme-invert",
+                  e.target.checked,
+                );
+                localStorage.setItem(
+                  "theme-invert",
+                  e.target.checked ? "1" : "0",
+                );
+              }}
             />
             <svg
               width="24"
