@@ -6,24 +6,14 @@
   padding: 1em;
   margin: 0 auto;
   width: 92%;
-  box-shadow:
-    1px 0 0 0 var(--border) inset,
-    -1px 0 0 0 var(--border) inset;
-
+  border-inline: 1px solid var(--border);
   &:last-child {
     flex: 1;
   }
-  /* If the container has exactly two children, reduce the gap */
-  /* &:has(> :nth-child(2):last-child) {
-    gap: 0.25em;
-  } */
 }
 
 .container + .container {
-  box-shadow:
-    1px 0 0 0 var(--border) inset,
-    -1px 0 0 0 var(--border) inset,
-    0 1px 0 0 color-mix(in srgb, var(--fg) 6%, transparent) inset;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
 }
 
 input,
@@ -40,9 +30,6 @@ button,
   }
 }
 
-/* Base UI slider parts. thumbAlignment="edge" keeps the thumb inside the
-   control like a native range input; Slider.Indicator draws the fill, with
-   its position inset-adjusted by Base UI to stay under the thumb's centre. */
 .slider {
   display: flex;
   flex-direction: column;
@@ -50,7 +37,7 @@ button,
 }
 
 .sliderControl {
-  --thumb-size: 0.75em;
+  --thumb-size: 1em;
   display: flex;
   align-items: center;
   width: 100%;
@@ -61,12 +48,14 @@ button,
 .sliderTrack {
   position: relative;
   width: 100%;
-  height: 1px;
-  background-color: var(--border);
+  border-top: 1px solid var(--border);
+  height: 2px;
 }
 
 .sliderIndicator {
-  background-color: var(--fg);
+  border-top: 1px solid var(--fg);
+  position: relative;
+  top: -1px;
 }
 
 .sliderThumb {
@@ -75,18 +64,17 @@ button,
   border-radius: 50%;
   background-color: var(--fg);
   cursor: pointer;
+  margin-top: -1px;
 }
 
-/* Detent marks overlaying a range slider, sitting on top of the track.
-   Tick spacing matches the slider's value→position mapping: the usable
-   track is inset half a thumb on each side. */
 .sliderTicks {
   position: relative;
   width: 100%;
+  /* detents */
   --minor-ticks: 60;
   --major-ticks: 6;
   /* half the thumb (--thumb-size on .sliderControl) */
-  --tick-inset: calc((0.75rem / 2) - 1px);
+  --tick-inset: calc((1em / 2) - 0.5px);
 }
 
 .sliderTicks::before {
@@ -94,11 +82,10 @@ button,
   position: absolute;
   left: var(--tick-inset);
   right: var(--tick-inset);
-  top: calc(50% + 6px);
+  top: calc(50% + 7px);
   height: 6px;
 
   pointer-events: none;
-  /* whole-number detents (6px, solid) over step detents (4px, subtle) */
   background-image:
     linear-gradient(to right, var(--fg) 0 1px, transparent 1px),
     linear-gradient(to right, var(--border) 0 1px, transparent 1px);
@@ -131,10 +118,8 @@ button,
   display: flex;
   flex-direction: row;
   max-width: var(--width);
-  box-shadow:
-    1px 0 0 0 var(--border) inset,
-    -1px 0 0 0 var(--border) inset,
-    0 -1px 0 0 color-mix(in srgb, var(--fg) 6%, transparent) inset;
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+  border-inline: 1px solid var(--border);
   margin: 0 auto;
   width: 92%;
   gap: 0.5em;
@@ -143,11 +128,12 @@ button,
 
 .tab {
   padding: 1.5em 0.2em 0.5em 0.2em;
-  font-size: 0.75em;
+  font-size: 0.75rem;
   text-decoration: none;
   color: color-mix(in srgb, var(--fg) 55%, transparent);
-  border: 1px solid transparent;
+  /* border: 1px solid transparent; */
 
+  margin-bottom: -1px;
   &:hover {
     color: var(--fg);
   }
@@ -169,9 +155,6 @@ button,
   border-radius: 0.75rem;
   min-height: 2rem;
   border: 1px solid var(--border);
-  /* The native indicator ignores padding, so draw our own chevron to control
-     its distance from the right edge. The stroke mirrors --fg, which a data-URI
-     SVG cannot read. */
   appearance: none;
   background-color: var(--bg-1);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='none' stroke='%234d3c208c' stroke-width='1.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
@@ -180,7 +163,6 @@ button,
   background-size: 0.7em auto;
 }
 
-/* Button-specific tweaks when .select styles a Base UI Menu.Trigger */
 .menuTrigger {
   text-align: left;
   cursor: pointer;
@@ -222,8 +204,6 @@ button,
   }
 }
 
-/* Dot marking the selected option; kept mounted so every item reserves the
-   same space and labels stay aligned */
 .menuItemIndicator {
   display: flex;
   align-items: center;
@@ -244,7 +224,6 @@ button,
   }
 }
 
-/* Preview card shown when hovering a tab: a short blurb about the tool */
 .previewPositioner {
   z-index: 10;
   outline: none;
@@ -271,8 +250,6 @@ button,
   }
 }
 
-/* Base UI NumberField: stepper buttons flanking the input, framed like the
-   old .input text field */
 .numberGroup {
   display: flex;
   align-items: stretch;
