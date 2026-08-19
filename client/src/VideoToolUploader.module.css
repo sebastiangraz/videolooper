@@ -499,10 +499,12 @@ button,
   isolation: isolate;
   display: flex;
   align-items: flex-end;
+  justify-content: space-between;
   contain: layout;
 }
 
-.credits a {
+.credits a,
+.themeSwitch {
   padding: 2px 0;
   font-variation-settings: "wght" 68;
   color: color-mix(in srgb, var(--fg) 50%, transparent);
@@ -518,8 +520,35 @@ button,
     color: color-mix(in srgb, var(--fg) 80%, transparent);
     font-variation-settings: "wght" 84;
   }
-  &:focus-visible {
+  &:focus-visible,
+  &:has(input:focus-visible) {
     outline: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
     outline-offset: 3px;
+  }
+}
+
+.themeSwitch {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  rotate: 0deg;
+  height: 0.4em;
+  aspect-ratio: 1;
+  contain: strict;
+  transition:
+    font-variation-settings 320ms ease,
+    color 200ms ease,
+    rotate 320ms ease;
+  &:has(input:checked) {
+    rotate: 180deg;
+  }
+  input {
+    position: absolute;
+    content-visibility: hidden;
+    visibility: hidden;
+    pointer-events: none;
   }
 }

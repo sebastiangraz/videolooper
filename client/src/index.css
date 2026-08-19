@@ -29,21 +29,48 @@
 }
 
 :root {
+  color-scheme: light dark;
+
   --font-sans: "Styrene B", system-ui, sans-serif;
   --font-logo: "GGX", "Styrene B", system-ui, sans-serif;
   --font-mono: monospace, menlo, monaco;
   --quantize: calc-size(auto, round(up, size, 1px));
 
-  --bg: #eeeae3;
-  --bg-1: color-mix(in srgb, var(--bg), #fff 20%);
-  --bg-2: color-mix(in srgb, var(--bg), #fff 40%);
-  --fg: #4d3c20;
+  --bg: light-dark(#eeeae3, #1c1813);
+  --fg: light-dark(#4d3c20, #d8cbb4);
+  /* Elevated surfaces need a gentler lift on a dark base */
+  --bg-1: light-dark(
+    color-mix(in srgb, var(--bg), #fff 20%),
+    color-mix(in srgb, var(--bg), #fff 5%)
+  );
+  --bg-2: light-dark(
+    color-mix(in srgb, var(--bg), #fff 40%),
+    color-mix(in srgb, var(--bg), #fff 10%)
+  );
   --border: color-mix(in srgb, var(--fg) 20%, transparent);
   --width: 32em;
+  /* Light fg-tinted shadows glow on dark; drop with black instead */
+  --shadow: light-dark(
+    color-mix(in srgb, var(--fg) 20%, transparent),
+    color-mix(in srgb, #000 40%, transparent)
+  );
   --raised:
-    0 4px 6px -1px color-mix(in srgb, var(--fg) 20%, transparent),
-    0 2px 4px -1px color-mix(in srgb, var(--fg) 20%, transparent),
+    0 4px 6px -1px var(--shadow), 0 2px 4px -1px var(--shadow),
     0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent);
+}
+
+/* The switch inverts the theme relative to the system preference;
+   unchecked always means "follow the system" */
+@media (prefers-color-scheme: light) {
+  :root:has(#theme-switch:checked) {
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:has(#theme-switch:checked) {
+    color-scheme: light;
+  }
 }
 
 body {

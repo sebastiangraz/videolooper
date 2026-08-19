@@ -662,6 +662,25 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
           <a href="https://graz.io" target="_blank">
             G
           </a>
+          <label className={styles.themeSwitch}>
+            <input
+              type="checkbox"
+              id="theme-switch"
+              aria-label="Toggle dark mode"
+            />
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12 0C18.6274 0 24 5.37258 24 12C24 18.6274 18.6274 24 12 24C5.37258 24 0 18.6274 0 12C0 5.37258 5.37258 0 12 0ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4V20Z"
+                fill="currentColor"
+              />
+            </svg>
+          </label>
         </div>
       </div>
     </>
