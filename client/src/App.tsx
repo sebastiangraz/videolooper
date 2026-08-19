@@ -62,7 +62,7 @@ const Layout = () => {
           {TOOLS.map((t) => (
             <PreviewCard.Root key={t.value}>
               <PreviewCard.Trigger
-                delay={500}
+                delay={200}
                 render={
                   <Link
                     to="/$tool"
