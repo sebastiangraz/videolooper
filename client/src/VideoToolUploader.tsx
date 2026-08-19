@@ -16,7 +16,7 @@ export const TOOLS = [
   {
     value: "loop",
     label: "Loop",
-    description: "Seamlessly loop a video.",
+    description: "Seamlessly loop a video",
     input: {
       accept: VIDEO_ACCEPT,
       multiple: false,
@@ -27,16 +27,14 @@ export const TOOLS = [
   {
     value: "sequence",
     label: "Sequence",
-    description:
-      "Builds an MP4, GIF, or AVIF video from a set of images, one frame per image.",
+    description: "Convert images to video",
     input: { accept: "image/*", multiple: true, pickerLabel: "choose images" },
     actionLabel: "Create video",
   },
   {
     value: "speed",
     label: "Speed",
-    description:
-      "Speeds up or slows down a video by up to 4× in either direction.",
+    description: "Change video speed",
     input: {
       accept: VIDEO_ACCEPT,
       multiple: false,
