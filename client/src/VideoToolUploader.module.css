@@ -105,8 +105,8 @@ button,
   position: absolute;
   left: var(--tick-inset);
   right: var(--tick-inset);
-  top: calc(50% + 1px);
-  height: 11px;
+  top: calc(50% + 6px);
+  height: 6px;
 
   pointer-events: none;
   /* whole-number detents (6px, solid) over step detents (4px, subtle) */
@@ -117,8 +117,8 @@ button,
     calc((100% - 1px) / var(--major-ticks)) 6px,
     calc((100% - 1px) / var(--minor-ticks)) 4px;
   background-position:
-    0 100%,
-    0 100%;
+    0 0,
+    0 0;
   background-repeat: repeat-x;
 }
 
