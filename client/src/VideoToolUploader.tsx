@@ -426,7 +426,9 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                 thumbAlignment="edge"
                 className={styles.slider}
               >
-                <Slider.Label className={styles.label}>Quality</Slider.Label>
+                <Slider.Label className={styles.label}>
+                  Quality {quality}%
+                </Slider.Label>
                 <Slider.Control className={styles.sliderControl}>
                   <Slider.Track className={styles.sliderTrack}>
                     <Slider.Indicator className={styles.sliderIndicator} />
@@ -517,7 +519,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                 className={styles.slider}
               >
                 <Slider.Label className={styles.label}>
-                  Quality
+                  Quality {quality}%
                   {format === "avif" && quality === 100
                     ? " (lossless)"
                     : files.length > 0 &&
