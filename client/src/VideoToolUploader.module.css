@@ -246,6 +246,7 @@ button,
 }
 
 .select {
+  position: relative;
   padding: 0.5em;
   padding-right: 2.5em;
   padding-left: 1em;
@@ -255,10 +256,17 @@ button,
   border: 1px solid var(--border);
   appearance: none;
   background-color: var(--bg-1);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='none' stroke='%234d3c208c' stroke-width='1.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 1em center;
-  background-size: 0.7em auto;
+}
+
+.selectCaret {
+  position: absolute;
+  right: 1em;
+  top: 50%;
+  translate: 0 -50%;
+  width: 0.7em;
+  height: auto;
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
+  pointer-events: none;
 }
 
 .menuTrigger {
@@ -300,7 +308,7 @@ button,
   cursor: default;
 
   &[data-highlighted] {
-    background-color: var(--bg-2);
+    background-color: var(--border-subtle);
   }
 }
 
@@ -546,7 +554,7 @@ button,
   justify-content: center;
   user-select: none;
   rotate: 0deg;
-  height: 0.35em;
+  height: 1.25rem;
   aspect-ratio: 1;
   contain: strict;
   transition:

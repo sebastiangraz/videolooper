@@ -121,6 +121,18 @@ const OptionMenu = ({
       className={`${styles.select} ${styles.menuTrigger}`}
     >
       {options.find((o) => o.value === value)?.label}
+      <svg
+        className={styles.selectCaret}
+        viewBox="0 0 10 6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M1 1l4 4 4-4" />
+      </svg>
     </Menu.Trigger>
     <Menu.Portal>
       <Menu.Positioner

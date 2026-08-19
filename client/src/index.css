@@ -37,7 +37,7 @@
   --quantize: calc-size(auto, round(up, size, 1px));
 
   --bg: light-dark(hsl(38, 24%, 91%), hsl(38, 15%, 5%));
-  --fg: light-dark(hsl(37, 41%, 21%), hsl(37, 38%, 72%));
+  --fg: light-dark(hsl(37, 41%, 21%), hsl(35, 32%, 72%));
   /* Elevated surfaces need a gentler lift on a dark base */
   --bg-1: light-dark(
     color-mix(in srgb, var(--bg), #fff 20%),
