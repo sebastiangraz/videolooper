@@ -267,7 +267,7 @@ const FramePreview = ({ src, second }: { src: string; second: number }) => {
   if (failedSrc === src) {
     return (
       <p className={styles.framePreviewError}>
-        Format not supported for preview.
+        Can&rsquo;t preview this format.
       </p>
     );
   }
