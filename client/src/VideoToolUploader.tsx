@@ -270,9 +270,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
       const blobUrls: string[] = [];
       for (let i = 0; i < files.length; i++) {
         setMsg(
-          files.length > 1
-            ? `Uploading ${i + 1}/${files.length} …`
-            : "Uploading …",
+          files.length > 1 ? `Uploading ${i + 1}/${files.length}` : "Uploading",
         );
         const blob = await upload(files[i].name, files[i], {
           access: "public",
@@ -284,7 +282,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
         blobUrls.push(blob.url);
       }
 
-      setMsg("Processing …");
+      setMsg("Processing");
       const payload =
         tool === "sequence"
           ? {
@@ -554,6 +552,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
           className={styles.button}
         >
           {busy ? status && status : currentTool.actionLabel}
+          {busy && <div className={styles.spinner} />}
         </button>
         {/* {status && <p className={styles.status}>{status}</p>} */}
         <div className={styles.credits}>

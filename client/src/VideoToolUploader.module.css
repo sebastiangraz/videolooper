@@ -70,7 +70,7 @@ button,
 
   /* Focus lands on the visually hidden range input inside the thumb. */
   &:has(:focus-visible) {
-    outline: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
+    outline: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
     outline-offset: 3px;
   }
 }
@@ -328,7 +328,12 @@ button,
 }
 
 .button {
-  padding: 1em 2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0 2em;
+  min-height: 2.25rem;
   align-self: flex-start;
   border-radius: 0.75em;
   background-color: var(--fg);
@@ -343,6 +348,31 @@ button,
 .button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.spinner {
+  width: 18px;
+  aspect-ratio: 1;
+  transform-origin: center right;
+  transform: scale(0.5);
+  --_g: no-repeat radial-gradient(farthest-side, var(--bg) 70%, #0000);
+
+  background:
+    var(--_g) 0 0,
+    var(--_g) 100% 0,
+    var(--_g) 100% 100%,
+    var(--_g) 0 100%;
+  background-size: 33% 33%;
+  animation: spinner 0.5s infinite;
+}
+@keyframes spinner {
+  100% {
+    background-position:
+      100% 0,
+      100% 100%,
+      0 100%,
+      0 0;
+  }
 }
 
 .credits {
