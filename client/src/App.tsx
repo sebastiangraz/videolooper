@@ -101,7 +101,10 @@ const Layout = () => {
           ))}
         </div>
 
-        <Outlet />
+        {/* Named for the view transition in index.module.css */}
+        <div className={appStyles.toolPanel}>
+          <Outlet />
+        </div>
       </main>
     </div>
   );
@@ -138,7 +141,7 @@ const routeTree = rootRoute.addChildren([indexRoute, toolRoute]);
 
 // history is injectable so tests can use createMemoryHistory
 export function createAppRouter(history?: RouterHistory) {
-  return createRouter({ routeTree, history });
+  return createRouter({ routeTree, history, defaultViewTransition: true });
 }
 
 declare module "@tanstack/react-router" {
