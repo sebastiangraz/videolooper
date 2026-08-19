@@ -1,12 +1,38 @@
 /* Base styles only - specific styles moved to CSS modules */
-body {
-  margin: 0;
-  font-family: monospace, menlo, monaco;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@font-face {
+  font-family: "Styrene";
+  src:
+    url("./fonts/StyreneB-Regular.woff2") format("woff2"),
+    url("./fonts/StyreneB-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Styrene";
+  src:
+    url("./fonts/StyreneB-Bold.woff2") format("woff2"),
+    url("./fonts/StyreneB-Bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GGX";
+  src: url("./fonts/GGX.ttf") format("truetype");
+  /* Variable font with a non-standard wght axis of 1-100 */
+  font-weight: 1 100;
+  font-style: normal;
+  font-display: swap;
 }
 
 :root {
+  --font-sans: "Styrene B", system-ui, sans-serif;
+  --font-logo: "GGX", "Styrene B", system-ui, sans-serif;
+  --font-mono: monospace, menlo, monaco;
+
   --bg: #eeeae3;
   --bg-1: color-mix(in srgb, var(--bg), #fff 20%);
   --bg-2: color-mix(in srgb, var(--bg), #fff 40%);
@@ -17,6 +43,13 @@ body {
     0 4px 6px -1px color-mix(in srgb, var(--fg) 20%, transparent),
     0 2px 4px -1px color-mix(in srgb, var(--fg) 20%, transparent),
     0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans), monospace, menlo, monaco;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html,
