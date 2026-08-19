@@ -67,7 +67,7 @@ button,
   background-color: var(--fg);
   cursor: pointer;
   /* will-change: transform; */
-  outline: 2px solid var(--bg);
+  outline: 3px solid var(--bg);
 }
 
 .sliderDetents {
