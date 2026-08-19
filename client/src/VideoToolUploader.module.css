@@ -43,7 +43,7 @@ button,
   font-size: 0.75em;
   &:focus-visible {
     outline: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
-    outline-offset: -2px;
+    outline-offset: 2px;
   }
 }
 
@@ -308,6 +308,9 @@ button,
   border: none;
   text-transform: none;
   background-color: transparent;
+  &:focus-visible {
+    outline-offset: -2px;
+  }
 }
 
 .numberButton {

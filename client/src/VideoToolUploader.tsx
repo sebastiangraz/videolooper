@@ -391,7 +391,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
 
                 <div className={styles.formGroup}>
                   <label htmlFor="startSecond" className={styles.label}>
-                    Start Second
+                    Start at
                   </label>
                   <DecimalField
                     id="startSecond"
