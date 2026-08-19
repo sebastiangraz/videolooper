@@ -39,7 +39,7 @@ button,
 }
 
 .sliderControl {
-  --thumb-size: 1em;
+  --thumb-size: 11px;
   display: grid;
   align-items: center;
   width: 100%;
@@ -55,7 +55,7 @@ button,
 }
 
 .sliderIndicator {
-  border-top: 1px solid var(--fg);
+  border-top: 1px solid color-mix(in srgb, var(--fg) 70%, transparent);
   position: relative;
   grid-area: 1 / 1;
 }
@@ -63,10 +63,11 @@ button,
 .sliderThumb {
   width: var(--thumb-size);
   height: var(--thumb-size);
-  border-radius: 50%;
+  border-radius: 999em;
   background-color: var(--fg);
   cursor: pointer;
-  /* margin-top: -1px; */
+  /* will-change: transform; */
+  outline: 2px solid var(--bg);
 }
 
 .sliderDetents {
@@ -80,7 +81,7 @@ button,
   --minor-ticks: 60;
   --major-ticks: 6;
   /* half the thumb (--thumb-size on .sliderControl) */
-  --tick-inset: calc((1em / 2) - 0.5px);
+  --tick-inset: calc((11px / 2));
 }
 
 .sliderTicks::before {
@@ -329,7 +330,7 @@ button,
   border: none;
   cursor: pointer;
   &:hover {
-    background-color: color-mix(in srgb, var(--fg) 80%, transparent);
+    background-color: color-mix(in srgb, var(--fg) 70%, transparent);
   }
 }
 
