@@ -306,6 +306,7 @@ button,
   padding: 0.5em 0.75em;
   border-radius: 0.25rem;
   border: none;
+  text-transform: none;
   background-color: transparent;
 }
 

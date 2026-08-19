@@ -145,6 +145,15 @@ const OptionMenu = ({
   </Menu.Root>
 );
 
+// Every field here is a duration, so values render with a seconds unit
+// ("2.1s"). Base UI derives the unit label from the format options, so it also
+// strips it back off when parsing typed input.
+const SECONDS_FORMAT: Intl.NumberFormatOptions = {
+  style: "unit",
+  unit: "second",
+  unitDisplay: "narrow",
+};
+
 // Decimal entry on Base UI's NumberField. Typed values are parsed with the
 // browser locale ("0,5" and "0.5" both work where the locale allows),
 // replacing the old manual comma handling.
@@ -169,6 +178,7 @@ const DecimalField = ({
     onValueChange={onValueChange}
     min={min}
     step={step}
+    format={SECONDS_FORMAT}
     disabled={disabled}
   >
     <NumberField.Group className={styles.numberGroup}>
