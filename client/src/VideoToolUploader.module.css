@@ -66,8 +66,13 @@ button,
   border-radius: 999em;
   background-color: var(--fg);
   cursor: pointer;
-  /* will-change: transform; */
-  outline: 3px solid var(--bg);
+  box-shadow: 0 0 0 3px var(--bg);
+
+  /* Focus lands on the visually hidden range input inside the thumb. */
+  &:has(:focus-visible) {
+    outline: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
+    outline-offset: 3px;
+  }
 }
 
 .sliderDetents {
@@ -150,8 +155,8 @@ button,
     color: var(--fg);
   }
   &:focus-visible {
-    outline: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
-    outline-offset: 0;
+    outline: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
   }
 }
 
@@ -279,6 +284,7 @@ button,
   border-radius: 0.25rem;
   border: none;
   text-transform: none;
+  user-select: none;
   background-color: transparent;
   &:focus-visible {
     outline-offset: -2px;
@@ -354,11 +360,16 @@ button,
   font-size: 44px;
   text-box: trim-both cap alphabetic;
   text-decoration: none;
+  border-radius: 0.75rem;
   transition:
     font-variation-settings 320ms ease,
     color 200ms ease;
   &:hover {
     color: color-mix(in srgb, var(--fg) 80%, transparent);
     font-variation-settings: "wght" 84;
+  }
+  &:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
+    outline-offset: 3px;
   }
 }
