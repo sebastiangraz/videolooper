@@ -192,6 +192,23 @@ describe("VideoToolUploader", () => {
     });
   });
 
+  it("shows a start-frame preview card when hovering the Start at input", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "tiny.mp4", { type: "video/mp4" });
+    await renderApp();
+    await user.upload(screen.getByLabelText(/choose video/i), file);
+
+    // Hidden until the user reaches for the field
+    expect(
+      screen.queryByLabelText(/start frame preview/i),
+    ).not.toBeInTheDocument();
+
+    // The preview lives in a Base UI PreviewCard triggered from the input
+    await user.hover(screen.getByLabelText(/start at/i));
+    const preview = await screen.findByLabelText(/start frame preview/i);
+    expect(preview).toHaveAttribute("src", "blob:mock");
+  });
+
   it("uploads images in filename order and requests an image sequence", async () => {
     const user = userEvent.setup();
     const fileB = new File(["00"], "b.png", { type: "image/png" });

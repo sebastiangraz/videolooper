@@ -1,7 +1,15 @@
-import { useState, ChangeEvent, CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  ChangeEvent,
+  CSSProperties,
+  ReactNode,
+} from "react";
 import { upload } from "@vercel/blob/client";
 import { Menu } from "@base-ui/react/menu";
 import { NumberField } from "@base-ui/react/number-field";
+import { PreviewCard } from "@base-ui/react/preview-card";
 import { Slider } from "@base-ui/react/slider";
 import styles from "./VideoToolUploader.module.css";
 
@@ -157,43 +165,106 @@ const SECONDS_FORMAT: Intl.NumberFormatOptions = {
 
 // Decimal entry on Base UI's NumberField. Typed values are parsed with the
 // browser locale ("0,5" and "0.5" both work where the locale allows),
-// replacing the old manual comma handling.
+// replacing the old manual comma handling. An optional `preview` renders in
+// a PreviewCard anchored to the input, opened by the card's own
+// hover/focus-on-trigger behaviour (same pattern as the tab previews in
+// App.tsx).
 const DecimalField = ({
   id,
   value,
   onValueChange,
   min,
   step,
+  largeStep,
   disabled,
+  preview,
 }: {
   id: string;
   value: number | null;
   onValueChange: (value: number | null) => void;
   min?: number;
   step?: number;
+  largeStep?: number;
   disabled: boolean;
-}) => (
-  <NumberField.Root
-    id={id}
-    value={value}
-    onValueChange={onValueChange}
-    min={min}
-    step={step}
-    format={SECONDS_FORMAT}
-    allowWheelScrub={true}
-    disabled={disabled}
-  >
-    <NumberField.Group className={styles.numberGroup}>
-      <NumberField.Decrement className={styles.numberButton}>
-        −
-      </NumberField.Decrement>
-      <NumberField.Input className={styles.numberInput} />
-      <NumberField.Increment className={styles.numberButton}>
-        +
-      </NumberField.Increment>
-    </NumberField.Group>
-  </NumberField.Root>
-);
+  preview?: ReactNode;
+}) => {
+  const input = <NumberField.Input className={styles.numberInput} />;
+  return (
+    <NumberField.Root
+      id={id}
+      value={value}
+      onValueChange={onValueChange}
+      min={min}
+      step={step}
+      largeStep={largeStep}
+      format={SECONDS_FORMAT}
+      allowWheelScrub={true}
+      disabled={disabled}
+    >
+      <NumberField.Group className={styles.numberGroup}>
+        <NumberField.Decrement className={styles.numberButton}>
+          −
+        </NumberField.Decrement>
+        {preview ? (
+          <PreviewCard.Root>
+            {/* The trigger generates its own id, which would clobber the
+                one NumberField gives the input and break the external
+                <label htmlFor>; passing it explicitly wins the merge. */}
+            <PreviewCard.Trigger id={id} delay={200} render={input} />
+            <PreviewCard.Portal>
+              <PreviewCard.Positioner
+                className={styles.previewPositioner}
+                side="top"
+                align="end"
+                sideOffset={8}
+              >
+                <PreviewCard.Popup className={styles.previewCard}>
+                  {preview}
+                </PreviewCard.Popup>
+              </PreviewCard.Positioner>
+            </PreviewCard.Portal>
+          </PreviewCard.Root>
+        ) : (
+          input
+        )}
+        <NumberField.Increment className={styles.numberButton}>
+          +
+        </NumberField.Increment>
+      </NumberField.Group>
+    </NumberField.Root>
+  );
+};
+
+// Paused <video> seeked to the loop start, shown while choosing "Start at" —
+// usually the frame that becomes a social post's thumbnail. The seek waits
+// for metadata so it lands on a decodable frame; the browser clamps
+// out-of-range times to the clip length.
+const FramePreview = ({ src, second }: { src: string; second: number }) => {
+  const ref = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    const seek = () => {
+      video.currentTime = second;
+    };
+    if (video.readyState >= video.HAVE_METADATA) seek();
+    else video.addEventListener("loadedmetadata", seek, { once: true });
+    return () => video.removeEventListener("loadedmetadata", seek);
+  }, [second]);
+
+  return (
+    <video
+      ref={ref}
+      src={src}
+      muted
+      playsInline
+      preload="auto"
+      aria-label="start frame preview"
+      className={styles.framePreview}
+    />
+  );
+};
 
 // Centre-anchored fill for the signed speed slider: Slider.Indicator spans
 // 0 → value by default; this respans it between the track centre and the
@@ -221,9 +292,17 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
   const [quality, setQuality] = useState<number>(100);
   const [speed, setSpeed] = useState<number>(0);
   const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [videoUrl, setVideoUrl] = useState<string>("");
   const [imageDims, setImageDims] = useState<{ w: number; h: number } | null>(
     null,
   );
+
+  // Object URL for the picked video, shared by the duration probe and the
+  // start-frame preview. Revoked when replaced or on unmount.
+  useEffect(() => {
+    if (!videoUrl) return;
+    return () => URL.revokeObjectURL(videoUrl);
+  }, [videoUrl]);
 
   const currentTool = TOOLS.find((t) => t.value === tool) ?? TOOLS[0];
 
@@ -242,17 +321,20 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
     );
     setFiles(sorted);
     setVideoDuration(0);
+    setVideoUrl("");
     setImageDims(null);
 
     const first = sorted[0];
     if (!currentTool.input.multiple && first.type.startsWith("video/")) {
+      const url = URL.createObjectURL(first);
+      setVideoUrl(url);
       // Get video duration when a single video is selected
       const video = document.createElement("video");
       video.preload = "metadata";
       video.onloadedmetadata = () => {
         setVideoDuration(Math.floor(video.duration));
       };
-      video.src = URL.createObjectURL(first);
+      video.src = url;
     } else if (first.type.startsWith("image/")) {
       // First image's dimensions drive the output frame size (and the
       // size estimate)
@@ -394,6 +476,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                     onValueChange={setFadeDuration}
                     min={0}
                     step={0.1}
+                    largeStep={0.5}
                     disabled={busy}
                   />
                 </div>
@@ -407,8 +490,17 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                     value={startSecond}
                     onValueChange={setStartSecond}
                     min={0}
-                    step={0.5}
+                    step={0.1}
+                    largeStep={0.5}
                     disabled={busy}
+                    preview={
+                      videoUrl && (
+                        <FramePreview
+                          src={videoUrl}
+                          second={startSecond ?? 0}
+                        />
+                      )
+                    }
                   />
                 </div>
               </div>

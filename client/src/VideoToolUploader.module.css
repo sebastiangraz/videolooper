@@ -315,6 +315,16 @@ button,
   }
 }
 
+.framePreview {
+  display: block;
+  /* Fills the preview card popup, capped by its max-width */
+  width: 14rem;
+  max-width: 100%;
+  box-shadow: var(--border);
+  border-radius: 0.75rem;
+  background-color: var(--bg-1);
+}
+
 .horizontal {
   display: flex;
   flex-direction: row;
