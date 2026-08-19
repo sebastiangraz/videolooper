@@ -27,27 +27,71 @@
   view-transition-class: panelItem;
 }
 
-/* :global is required: CSS modules would otherwise hash the class inside the
-   pseudo-element while leaving the view-transition-class value above alone */
+/* Positions are enumerated to stagger the sequence. sibling-index() cannot do
+   this job: inside a pseudo-element it resolves against the originating
+   element, which for every view transition pseudo is <html>, so it is always 1.
+   A view-transition-class is a plain property though, so :nth-child() can hand
+   each position its own hook. Items past the last rule share the final step. */
+.container + .container > *:nth-child(1) {
+  view-transition-class: panelItem i1;
+}
+.container + .container > *:nth-child(2) {
+  view-transition-class: panelItem i2;
+}
+.container + .container > *:nth-child(3) {
+  view-transition-class: panelItem i3;
+}
+.container + .container > *:nth-child(4) {
+  view-transition-class: panelItem i4;
+}
+.container + .container > *:nth-child(n + 5) {
+  view-transition-class: panelItem i5;
+}
+
+/* :global is required throughout: CSS modules would otherwise hash the class
+   inside the pseudo-element while leaving the property values above alone.
+   --i is set on the group because custom properties inherit from there down to
+   the old and new snapshots, which is where the animations read them. */
+::view-transition-group(*:global(.panelItem)) {
+  --stagger: 30ms;
+}
+::view-transition-group(*:global(.i1)) {
+  --i: 1;
+}
+::view-transition-group(*:global(.i2)) {
+  --i: 2;
+}
+::view-transition-group(*:global(.i3)) {
+  --i: 3;
+}
+::view-transition-group(*:global(.i4)) {
+  --i: 4;
+}
+::view-transition-group(*:global(.i5)) {
+  --i: 5;
+}
+
 ::view-transition-old(*:global(.panelItem)) {
-  animation: panelItemLeave 200ms ease both;
+  animation: panelItemLeave 180ms ease both;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
 }
 
 ::view-transition-new(*:global(.panelItem)) {
-  animation: panelItemEnter 200ms 70ms ease both;
+  animation: panelItemEnter 180ms ease both;
+  animation-delay: calc(50ms + var(--i, 0) * var(--stagger));
 }
 
 @keyframes panelItemLeave {
   to {
     opacity: 0;
-    translate: 0 -0.5em;
+    translate: 0 -0.25em;
   }
 }
 
 @keyframes panelItemEnter {
   from {
     opacity: 0;
-    translate: 0 -0.5em;
+    translate: 0 0.25em;
   }
 }
 
@@ -452,6 +496,7 @@ button,
 
 .credits {
   flex: 1;
+  isolation: isolate;
   display: flex;
   align-items: flex-end;
   contain: layout;
