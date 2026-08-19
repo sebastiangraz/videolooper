@@ -14,7 +14,7 @@
 }
 
 .container + .container {
-  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* On tool change only the contents animate. The containers stay unnamed, so
@@ -212,7 +212,7 @@ button,
   min-height: var(--quantize);
   flex-direction: row;
   max-width: var(--width);
-  border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+  border-bottom: 1px solid var(--border-subtle);
   border-inline: 1px solid var(--border);
   margin: 0 auto;
   width: 92%;
@@ -295,7 +295,7 @@ button,
   cursor: default;
 
   &[data-highlighted] {
-    background-color: color-mix(in srgb, var(--fg) 8%, transparent);
+    background-color: var(--bg-2);
   }
 }
 
@@ -386,11 +386,11 @@ button,
   }
   &:first-child {
     padding: 0 0.8rem 0 1rem;
-    border-right: 1px solid var(--border);
+    border-right: 1px solid var(--border-subtle);
   }
   &:last-child {
     padding: 0 1rem 0 0.8rem;
-    border-left: 1px solid var(--border);
+    border-left: 1px solid var(--border-subtle);
   }
 }
 
@@ -535,7 +535,7 @@ button,
   justify-content: center;
   user-select: none;
   rotate: 0deg;
-  height: 0.4em;
+  height: 0.35em;
   aspect-ratio: 1;
   contain: strict;
   transition:

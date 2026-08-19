@@ -36,18 +36,25 @@
   --font-mono: monospace, menlo, monaco;
   --quantize: calc-size(auto, round(up, size, 1px));
 
-  --bg: light-dark(#eeeae3, #1c1813);
-  --fg: light-dark(#4d3c20, #d8cbb4);
+  --bg: light-dark(hsl(38, 24%, 91%), hsl(38, 15%, 5%));
+  --fg: light-dark(hsl(37, 41%, 21%), hsl(37, 38%, 72%));
   /* Elevated surfaces need a gentler lift on a dark base */
   --bg-1: light-dark(
     color-mix(in srgb, var(--bg), #fff 20%),
-    color-mix(in srgb, var(--bg), #fff 5%)
+    color-mix(in srgb, var(--bg), var(--fg) 3%)
   );
   --bg-2: light-dark(
     color-mix(in srgb, var(--bg), #fff 40%),
-    color-mix(in srgb, var(--bg), #fff 10%)
+    color-mix(in srgb, var(--bg), var(--fg) 8%)
   );
-  --border: color-mix(in srgb, var(--fg) 20%, transparent);
+  --border: light-dark(
+    color-mix(in srgb, var(--fg) 16%, transparent),
+    color-mix(in srgb, var(--fg) 8%, transparent)
+  );
+  --border-subtle: light-dark(
+    color-mix(in srgb, var(--fg) 8%, transparent),
+    color-mix(in srgb, var(--fg) 4%, transparent)
+  );
   --width: 32em;
   /* Light fg-tinted shadows glow on dark; drop with black instead */
   --shadow: light-dark(
