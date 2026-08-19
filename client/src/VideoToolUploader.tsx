@@ -145,11 +145,14 @@ const OptionMenu = ({
 
 // Every field here is a duration, so values render with a seconds unit
 // ("2.1s"). Base UI derives the unit label from the format options, so it also
-// strips it back off when parsing typed input.
+// strips it back off when parsing typed input. One forced decimal keeps whole
+// numbers looking like the fractional steps they're nudged in ("1.0s", not
+// "1s").
 const SECONDS_FORMAT: Intl.NumberFormatOptions = {
   style: "unit",
   unit: "second",
   unitDisplay: "narrow",
+  minimumFractionDigits: 1,
 };
 
 // Decimal entry on Base UI's NumberField. Typed values are parsed with the
