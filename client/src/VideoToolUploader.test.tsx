@@ -230,6 +230,26 @@ describe("VideoToolUploader", () => {
     expect(fade.value).toMatch(/0[.,]6/);
   });
 
+  it("shows an error in the preview card when the browser can't decode the video", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "clip.avi", { type: "video/x-msvideo" });
+    await renderApp();
+    await user.upload(screen.getByLabelText(/choose video/i), file);
+
+    await user.hover(screen.getByLabelText(/start at/i));
+    const preview = await screen.findByLabelText(/start frame preview/i);
+    // jsdom never decodes media; simulate the failure browsers report for
+    // containers <video> can't play (AVI, WMV, …)
+    fireEvent.error(preview);
+
+    expect(
+      await screen.findByText(/can.t preview this format/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/start frame preview/i),
+    ).not.toBeInTheDocument();
+  });
+
   it("uploads images in filename order and requests an image sequence", async () => {
     const user = userEvent.setup();
     const fileB = new File(["00"], "b.png", { type: "image/png" });

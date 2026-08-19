@@ -316,6 +316,20 @@ button,
   }
 }
 
+.framePreviewError {
+  max-width: 14rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  padding: 2em;
+  box-shadow: var(--raised);
+  border-radius: 0.75rem;
+  text-align: left;
+  text-wrap: balance;
+  margin: 0;
+}
+
 .framePreview {
   display: block;
   /* Fills the preview card popup, capped by its max-width */

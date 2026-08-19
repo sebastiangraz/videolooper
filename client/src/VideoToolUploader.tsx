@@ -233,9 +233,13 @@ const DecimalField = ({
 // Paused <video> seeked to the loop start, shown while choosing "Start at" —
 // usually the frame that becomes a social post's thumbnail. The seek waits
 // for metadata so it lands on a decodable frame; the browser clamps
-// out-of-range times to the clip length.
+// out-of-range times to the clip length. The accept list is broader than
+// what browsers can decode (server-side ffmpeg handles the rest), so a
+// decode error swaps the frame for a short note. Tracking the failed src
+// rather than a boolean resets the error when a new file is picked.
 const FramePreview = ({ src, second }: { src: string; second: number }) => {
   const ref = useRef<HTMLVideoElement>(null);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
   useEffect(() => {
     const video = ref.current;
@@ -248,6 +252,14 @@ const FramePreview = ({ src, second }: { src: string; second: number }) => {
     return () => video.removeEventListener("loadedmetadata", seek);
   }, [second]);
 
+  if (failedSrc === src) {
+    return (
+      <p className={styles.framePreviewError}>
+        Format not supported for preview.
+      </p>
+    );
+  }
+
   return (
     <video
       ref={ref}
@@ -256,6 +268,7 @@ const FramePreview = ({ src, second }: { src: string; second: number }) => {
       playsInline
       preload="auto"
       aria-label="start frame preview"
+      onError={() => setFailedSrc(src)}
       className={styles.framePreview}
     />
   );
