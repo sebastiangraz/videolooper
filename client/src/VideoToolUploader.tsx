@@ -187,53 +187,57 @@ const DecimalField = ({
   largeStep?: number;
   disabled: boolean;
   preview?: ReactNode;
-}) => {
-  const input = <NumberField.Input className={styles.numberInput} />;
-  return (
-    <NumberField.Root
-      id={id}
-      value={value}
-      onValueChange={onValueChange}
-      min={min}
-      step={step}
-      largeStep={largeStep}
-      format={SECONDS_FORMAT}
-      allowWheelScrub={true}
-      disabled={disabled}
-    >
-      <NumberField.Group className={styles.numberGroup}>
-        <NumberField.Decrement className={styles.numberButton}>
-          −
-        </NumberField.Decrement>
-        {preview ? (
-          <PreviewCard.Root>
-            {/* The trigger generates its own id, which would clobber the
-                one NumberField gives the input and break the external
-                <label htmlFor>; passing it explicitly wins the merge. */}
-            <PreviewCard.Trigger id={id} delay={200} render={input} />
-            <PreviewCard.Portal>
-              <PreviewCard.Positioner
-                className={styles.previewPositioner}
-                side="top"
-                align="end"
-                sideOffset={8}
-              >
-                <PreviewCard.Popup className={styles.previewCard}>
-                  {preview}
-                </PreviewCard.Popup>
-              </PreviewCard.Positioner>
-            </PreviewCard.Portal>
-          </PreviewCard.Root>
-        ) : (
-          input
+}) => (
+  <NumberField.Root
+    id={id}
+    value={value}
+    onValueChange={onValueChange}
+    min={min}
+    step={step}
+    largeStep={largeStep}
+    format={SECONDS_FORMAT}
+    allowWheelScrub={true}
+    disabled={disabled}
+  >
+    <NumberField.Group className={styles.numberGroup}>
+      <NumberField.Decrement className={styles.numberButton}>
+        −
+      </NumberField.Decrement>
+      {/* The input stays wrapped in the trigger even while `preview` is
+          empty (only the portal is conditional): swapping the plain input
+          for a wrapped one remounts the input element, and the native wheel
+          listener NumberField.Root attached to the original node would die
+          with it, breaking allowWheelScrub. */}
+      <PreviewCard.Root>
+        {/* The trigger generates its own id, which would clobber the
+            one NumberField gives the input and break the external
+            <label htmlFor>; passing it explicitly wins the merge. */}
+        <PreviewCard.Trigger
+          id={id}
+          delay={200}
+          render={<NumberField.Input className={styles.numberInput} />}
+        />
+        {preview && (
+          <PreviewCard.Portal>
+            <PreviewCard.Positioner
+              className={styles.previewPositioner}
+              side="top"
+              align="end"
+              sideOffset={8}
+            >
+              <PreviewCard.Popup className={styles.previewCard}>
+                {preview}
+              </PreviewCard.Popup>
+            </PreviewCard.Positioner>
+          </PreviewCard.Portal>
         )}
-        <NumberField.Increment className={styles.numberButton}>
-          +
-        </NumberField.Increment>
-      </NumberField.Group>
-    </NumberField.Root>
-  );
-};
+      </PreviewCard.Root>
+      <NumberField.Increment className={styles.numberButton}>
+        +
+      </NumberField.Increment>
+    </NumberField.Group>
+  </NumberField.Root>
+);
 
 // Paused <video> seeked to the loop start, shown while choosing "Start at" —
 // usually the frame that becomes a social post's thumbnail. The seek waits

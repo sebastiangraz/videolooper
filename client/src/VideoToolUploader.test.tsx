@@ -209,6 +209,27 @@ describe("VideoToolUploader", () => {
     expect(preview).toHaveAttribute("src", "blob:mock");
   });
 
+  it("wheel-scrubs the preview-wrapped Start at field after picking a video", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "tiny.mp4", { type: "video/mp4" });
+    await renderApp();
+    await user.upload(screen.getByLabelText(/choose video/i), file);
+
+    // Wheel scrub requires the input to be focused; one wheel tick steps by
+    // `step` (0.1). The listener is a native one NumberField.Root attaches to
+    // the input node, so it must survive the preview card appearing around
+    // the input when a video is picked.
+    const start = screen.getByLabelText(/start at/i) as HTMLInputElement;
+    start.focus();
+    fireEvent.wheel(start, { deltaY: -1 });
+    expect(start.value).toMatch(/0[.,]1/);
+
+    const fade = screen.getByLabelText(/fade duration/i) as HTMLInputElement;
+    fade.focus();
+    fireEvent.wheel(fade, { deltaY: -1 });
+    expect(fade.value).toMatch(/0[.,]6/);
+  });
+
   it("uploads images in filename order and requests an image sequence", async () => {
     const user = userEvent.setup();
     const fileB = new File(["00"], "b.png", { type: "image/png" });

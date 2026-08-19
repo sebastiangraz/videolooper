@@ -320,7 +320,7 @@ button,
   /* Fills the preview card popup, capped by its max-width */
   width: 14rem;
   max-width: 100%;
-  box-shadow: var(--border);
+  box-shadow: var(--raised);
   border-radius: 0.75rem;
   background-color: var(--bg-1);
 }
