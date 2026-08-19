@@ -179,6 +179,7 @@ const DecimalField = ({
     min={min}
     step={step}
     format={SECONDS_FORMAT}
+    allowWheelScrub={true}
     disabled={disabled}
   >
     <NumberField.Group className={styles.numberGroup}>
