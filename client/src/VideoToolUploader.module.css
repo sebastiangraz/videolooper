@@ -338,3 +338,27 @@ button,
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+.credits {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  contain: layout;
+}
+
+.credits a {
+  padding: 2px 0;
+  font-variation-settings: "wght" 68;
+  color: color-mix(in srgb, var(--fg) 50%, transparent);
+  font-family: var(--font-logo);
+  font-size: 44px;
+  text-box: trim-both cap alphabetic;
+  text-decoration: none;
+  transition:
+    font-variation-settings 320ms ease,
+    color 200ms ease;
+  &:hover {
+    color: color-mix(in srgb, var(--fg) 80%, transparent);
+    font-variation-settings: "wght" 84;
+  }
+}
