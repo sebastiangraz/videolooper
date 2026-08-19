@@ -40,24 +40,24 @@ button,
 
 .sliderControl {
   --thumb-size: 1em;
-  display: flex;
+  display: grid;
   align-items: center;
   width: 100%;
-  height: var(--thumb-size);
+  /* height: var(--thumb-size); */
   cursor: pointer;
 }
 
 .sliderTrack {
+  border-top: 1px solid var(--border);
   position: relative;
   width: 100%;
-  border-top: 1px solid var(--border);
-  height: 2px;
+  grid-area: 1 / 1;
 }
 
 .sliderIndicator {
   border-top: 1px solid var(--fg);
   position: relative;
-  top: -1px;
+  grid-area: 1 / 1;
 }
 
 .sliderThumb {
@@ -66,7 +66,11 @@ button,
   border-radius: 50%;
   background-color: var(--fg);
   cursor: pointer;
-  margin-top: -1px;
+  /* margin-top: -1px; */
+}
+
+.sliderDetents {
+  margin-bottom: 1em;
 }
 
 .sliderTicks {
@@ -84,7 +88,7 @@ button,
   position: absolute;
   left: var(--tick-inset);
   right: var(--tick-inset);
-  top: calc(50% + 7px);
+  top: calc(50% + 8px);
   height: 6px;
 
   pointer-events: none;

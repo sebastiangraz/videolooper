@@ -428,8 +428,8 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                   Quality {quality}%
                 </Slider.Label>
                 <Slider.Control className={styles.sliderControl}>
+                  <Slider.Indicator className={styles.sliderIndicator} />
                   <Slider.Track className={styles.sliderTrack}>
-                    <Slider.Indicator className={styles.sliderIndicator} />
                     <Slider.Thumb className={styles.sliderThumb} />
                   </Slider.Track>
                 </Slider.Control>
@@ -439,7 +439,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
         )}
 
         {tool === "speed" && (
-          <div className={styles.formGroup}>
+          <div className={`${styles.formGroup} ${styles.sliderDetents}`}>
             <Slider.Root
               value={speed}
               onValueChange={(value) => setSpeed(value as number)}
@@ -463,11 +463,11 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
               </Slider.Label>
               <div className={styles.sliderTicks}>
                 <Slider.Control className={styles.sliderControl}>
+                  <Slider.Indicator
+                    className={styles.sliderIndicator}
+                    style={CENTERED_INDICATOR}
+                  />
                   <Slider.Track className={styles.sliderTrack}>
-                    <Slider.Indicator
-                      className={styles.sliderIndicator}
-                      style={CENTERED_INDICATOR}
-                    />
                     <Slider.Thumb className={styles.sliderThumb} />
                   </Slider.Track>
                 </Slider.Control>
@@ -533,8 +533,8 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                       )}`}
                 </Slider.Label>
                 <Slider.Control className={styles.sliderControl}>
+                  <Slider.Indicator className={styles.sliderIndicator} />
                   <Slider.Track className={styles.sliderTrack}>
-                    <Slider.Indicator className={styles.sliderIndicator} />
                     <Slider.Thumb className={styles.sliderThumb} />
                   </Slider.Track>
                 </Slider.Control>
