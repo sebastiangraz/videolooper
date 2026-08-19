@@ -51,15 +51,13 @@ const Layout = () => {
   return (
     <div className={appStyles.app}>
       <header className={appStyles.header}>
-        <div className={appStyles.headerContent}>
-          <Logo />
-          <h1 ref={titleRef} className={appStyles.title}>
-            Video tools
-          </h1>
-        </div>
+        <Logo />
+        <h1 ref={titleRef} className={appStyles.title}>
+          Video tools
+        </h1>
       </header>
 
-      <main className={appStyles.main}>
+      <div className={styles.tabContainer}>
         <div className={styles.tabs}>
           {TOOLS.map((t) => (
             <PreviewCard.Root key={t.value}>
@@ -100,7 +98,8 @@ const Layout = () => {
             </PreviewCard.Root>
           ))}
         </div>
-
+      </div>
+      <main className={appStyles.main}>
         <Outlet />
       </main>
     </div>

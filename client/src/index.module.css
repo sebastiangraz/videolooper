@@ -5,9 +5,6 @@
   flex-direction: column;
 }
 .header {
-  border-bottom: 1px solid var(--border);
-}
-.headerContent {
   margin: 0 auto;
   width: 92%;
   max-width: var(--width);
