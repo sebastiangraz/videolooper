@@ -17,20 +17,21 @@ beforeEach(() => {
 });
 
 // Mounts the full app (router + tabs + uploader) at the given URL and
-// waits for the tool page to render. Every tool page has exactly one button.
+// waits for the tool page to render (pages have several buttons now that
+// Base UI menus and number-field steppers render as buttons).
 const renderApp = async (initialPath = "/loop") => {
   const router = createAppRouter(
     createMemoryHistory({ initialEntries: [initialPath] }),
   );
   render(<RouterProvider router={router} />);
-  await screen.findByRole("button");
+  await screen.findAllByRole("button");
   return router;
 };
 
 describe("VideoToolUploader", () => {
   it("disables the button until a file is chosen", async () => {
     await renderApp();
-    const btn = screen.getByRole("button", { name: /loop/i });
+    const btn = screen.getByRole("button", { name: /^loop$/i });
     expect(btn).toBeDisabled();
   });
 
@@ -42,7 +43,7 @@ describe("VideoToolUploader", () => {
     const input = screen.getByLabelText(/choose video/i);
     await user.upload(input, file);
 
-    expect(screen.getByRole("button", { name: /loop/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^loop$/i })).toBeEnabled();
   });
 
   it("switches tool and clears the picked file when a tab is clicked", async () => {
@@ -51,7 +52,7 @@ describe("VideoToolUploader", () => {
     const router = await renderApp();
 
     await user.upload(screen.getByLabelText(/choose video/i), file);
-    expect(screen.getByRole("button", { name: /loop/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^loop$/i })).toBeEnabled();
 
     await user.click(screen.getByRole("link", { name: /sequence/i }));
     expect(
@@ -102,12 +103,13 @@ describe("VideoToolUploader", () => {
 
     await renderApp();
     await user.upload(screen.getByLabelText(/choose video/i), file);
-    await user.click(screen.getByRole("button", { name: /loop/i }));
+    await user.click(screen.getByRole("button", { name: /^loop$/i }));
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/done – tiny_loop\.mp4 downloaded/i),
-      ).toBeInTheDocument(),
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/process",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
     );
     expect(uploadMock).toHaveBeenCalledWith(
       "tiny.mp4",
@@ -131,7 +133,10 @@ describe("VideoToolUploader", () => {
     });
   });
 
-  it("accepts comma decimals in number fields", async () => {
+  // NumberField parses typed values with the runtime locale, so type the
+  // locale's own decimal separator ("." in en-US, "," in sv-SE, …).
+  it("accepts decimal values in number fields", async () => {
+    const sep = (1.1).toLocaleString().charAt(1);
     const user = userEvent.setup();
     const file = new File(["00"], "tiny.mp4", { type: "video/mp4" });
 
@@ -164,17 +169,18 @@ describe("VideoToolUploader", () => {
     await renderApp();
     await user.upload(screen.getByLabelText(/choose video/i), file);
     fireEvent.change(screen.getByLabelText(/fade duration/i), {
-      target: { value: "0,7" },
+      target: { value: `0${sep}7` },
     });
-    fireEvent.change(screen.getByLabelText(/start second/i), {
-      target: { value: "1.5" },
+    fireEvent.change(screen.getByLabelText(/start at/i), {
+      target: { value: `1${sep}5` },
     });
-    await user.click(screen.getByRole("button", { name: /loop/i }));
+    await user.click(screen.getByRole("button", { name: /^loop$/i }));
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/done – tiny_loop\.mp4 downloaded/i),
-      ).toBeInTheDocument(),
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/process",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
     );
     const processBody = JSON.parse(
       (fetchMock.mock.calls.find(([, init]) => init?.method === "POST")?.[1]
@@ -184,6 +190,64 @@ describe("VideoToolUploader", () => {
       fadeDuration: 0.7,
       startSecond: 1.5,
     });
+  });
+
+  it("shows a start-frame preview card when hovering the Start at input", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "tiny.mp4", { type: "video/mp4" });
+    await renderApp();
+    await user.upload(screen.getByLabelText(/choose video/i), file);
+
+    // Hidden until the user reaches for the field
+    expect(
+      screen.queryByLabelText(/start frame preview/i),
+    ).not.toBeInTheDocument();
+
+    // The preview lives in a Base UI PreviewCard triggered from the input
+    await user.hover(screen.getByLabelText(/start at/i));
+    const preview = await screen.findByLabelText(/start frame preview/i);
+    expect(preview).toHaveAttribute("src", "blob:mock");
+  });
+
+  it("wheel-scrubs the preview-wrapped Start at field after picking a video", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "tiny.mp4", { type: "video/mp4" });
+    await renderApp();
+    await user.upload(screen.getByLabelText(/choose video/i), file);
+
+    // Wheel scrub requires the input to be focused; one wheel tick steps by
+    // `step` (0.1). The listener is a native one NumberField.Root attaches to
+    // the input node, so it must survive the preview card appearing around
+    // the input when a video is picked.
+    const start = screen.getByLabelText(/start at/i) as HTMLInputElement;
+    start.focus();
+    fireEvent.wheel(start, { deltaY: -1 });
+    expect(start.value).toMatch(/0[.,]1/);
+
+    const fade = screen.getByLabelText(/fade duration/i) as HTMLInputElement;
+    fade.focus();
+    fireEvent.wheel(fade, { deltaY: -1 });
+    expect(fade.value).toMatch(/0[.,]6/);
+  });
+
+  it("shows an error in the preview card when the browser can't decode the video", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "clip.avi", { type: "video/x-msvideo" });
+    await renderApp();
+    await user.upload(screen.getByLabelText(/choose video/i), file);
+
+    await user.hover(screen.getByLabelText(/start at/i));
+    const preview = await screen.findByLabelText(/start frame preview/i);
+    // jsdom never decodes media; simulate the failure browsers report for
+    // containers <video> can't play (AVI, WMV, …)
+    fireEvent.error(preview);
+
+    expect(
+      await screen.findByText(/can.t preview this format/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/start frame preview/i),
+    ).not.toBeInTheDocument();
   });
 
   it("uploads images in filename order and requests an image sequence", async () => {
@@ -219,13 +283,18 @@ describe("VideoToolUploader", () => {
 
     await renderApp("/sequence");
     await user.upload(screen.getByLabelText(/choose images/i), [fileB, fileA]);
-    await user.selectOptions(screen.getByLabelText(/output format/i), "gif");
+    // Format dropdown is a Base UI Menu: open the trigger, pick a radio item
+    await user.click(screen.getByLabelText(/output format/i));
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /gif/i }),
+    );
     await user.click(screen.getByRole("button", { name: /create video/i }));
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/done – a_video\.gif downloaded/i),
-      ).toBeInTheDocument(),
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/process",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
     );
     expect(uploadMock).toHaveBeenCalledTimes(2);
     expect(uploadMock).toHaveBeenNthCalledWith(
@@ -287,16 +356,19 @@ describe("VideoToolUploader", () => {
 
     await renderApp("/speed");
     await user.upload(screen.getByLabelText(/choose video/i), file);
-    // userEvent has no slider support — set the range input directly
-    fireEvent.change(screen.getByLabelText(/speed/i), {
+    // userEvent has no slider support — set the thumb's range input directly.
+    // jsdom has no layout, so Base UI keeps the thumb visibility:hidden
+    // (edge alignment needs measurements); include hidden elements.
+    fireEvent.change(screen.getByRole("slider", { hidden: true }), {
       target: { value: "1" },
     });
     await user.click(screen.getByRole("button", { name: /change speed/i }));
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/done – clip_speed\.mp4 downloaded/i),
-      ).toBeInTheDocument(),
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/process",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
     );
     const processBody = JSON.parse(
       (fetchMock.mock.calls.find(([, init]) => init?.method === "POST")?.[1]

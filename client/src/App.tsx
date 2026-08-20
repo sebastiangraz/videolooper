@@ -7,6 +7,8 @@ import {
   redirect,
   type RouterHistory,
 } from "@tanstack/react-router";
+import { PreviewCard } from "@base-ui/react/preview-card";
+import { useRef } from "react";
 import { VideoToolUploader, TOOLS } from "./VideoToolUploader";
 import appStyles from "./index.module.css";
 import styles from "./VideoToolUploader.module.css";
@@ -31,34 +33,73 @@ const Logo = () => {
   );
 };
 
+// Pulls the popup back up over its anchor so it sits centred on the anchor
+// instead of below it
+const centerOverAnchor = ({
+  anchor,
+  positioner,
+}: {
+  anchor: { height: number };
+  positioner: { height: number };
+}) => -(anchor.height + positioner.height) / 2;
+
 const Layout = () => {
+  // Every preview card is positioned over the title rather than its own tab, so
+  // the card never moves regardless of which tab is hovered
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
+
   return (
     <div className={appStyles.app}>
       <header className={appStyles.header}>
-        <div className={appStyles.headerContent}>
-          <Logo />
-          <h1 className={appStyles.title}>Video tools</h1>
-        </div>
+        <Logo />
+        <h1 ref={titleRef} className={appStyles.title}>
+          Video tools
+        </h1>
       </header>
 
-      <main className={appStyles.main}>
+      <div className={styles.tabContainer}>
         <div className={styles.tabs}>
           {TOOLS.map((t) => (
-            <Link
-              key={t.value}
-              to="/$tool"
-              params={{ tool: t.value }}
-              className={styles.tab}
-              activeProps={{
-                className: styles.tabActive,
-                "aria-current": "page",
-              }}
-            >
-              {t.label}
-            </Link>
+            <PreviewCard.Root key={t.value}>
+              <PreviewCard.Trigger
+                delay={200}
+                render={
+                  <Link
+                    to="/$tool"
+                    params={{ tool: t.value }}
+                    className={styles.tab}
+                    activeProps={{
+                      className: styles.tabActive,
+                      "aria-current": "page",
+                    }}
+                  />
+                }
+              >
+                {t.label}
+              </PreviewCard.Trigger>
+              <PreviewCard.Portal>
+                <PreviewCard.Positioner
+                  className={styles.previewPositioner}
+                  anchor={titleRef}
+                  side="bottom"
+                  align="end"
+                  sideOffset={centerOverAnchor}
+                  collisionAvoidance={{
+                    side: "none",
+                    align: "none",
+                    fallbackAxisSide: "none",
+                  }}
+                >
+                  <PreviewCard.Popup className={styles.previewCard}>
+                    {t.description}
+                  </PreviewCard.Popup>
+                </PreviewCard.Positioner>
+              </PreviewCard.Portal>
+            </PreviewCard.Root>
           ))}
         </div>
-
+      </div>
+      <main className={appStyles.main}>
         <Outlet />
       </main>
     </div>
@@ -96,7 +137,7 @@ const routeTree = rootRoute.addChildren([indexRoute, toolRoute]);
 
 // history is injectable so tests can use createMemoryHistory
 export function createAppRouter(history?: RouterHistory) {
-  return createRouter({ routeTree, history });
+  return createRouter({ routeTree, history, defaultViewTransition: true });
 }
 
 declare module "@tanstack/react-router" {

@@ -1,18 +1,95 @@
 /* Base styles only - specific styles moved to CSS modules */
-body {
-  margin: 0;
-  font-family: monospace, menlo, monaco;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@font-face {
+  font-family: "Styrene";
+  src:
+    url("./fonts/StyreneB-Regular.woff2") format("woff2"),
+    url("./fonts/StyreneB-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Styrene";
+  src:
+    url("./fonts/StyreneB-Bold.woff2") format("woff2"),
+    url("./fonts/StyreneB-Bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GGX";
+  src: url("./fonts/GGX.ttf") format("truetype");
+  /* Variable font with a non-standard wght axis of 1-100 */
+  font-weight: 1 100;
+  font-style: normal;
+  font-display: swap;
 }
 
 :root {
-  --bg: #eeeae3;
-  --bg-1: color-mix(in srgb, var(--bg), #fff 20%);
-  --bg-2: color-mix(in srgb, var(--bg), #fff 40%);
-  --fg: #4d3c20;
-  --border: color-mix(in srgb, var(--fg) 20%, transparent);
+  color-scheme: light dark;
+
+  --font-sans: "Styrene B", system-ui, sans-serif;
+  --font-logo: "GGX", "Styrene B", system-ui, sans-serif;
+  --font-mono: monospace, menlo, monaco;
+  --quantize: calc-size(auto, round(up, size, 1px));
+
+  --bg: light-dark(hsl(156, 29%, 97%), hsl(150, 11%, 4%));
+  --fg: light-dark(hsl(152, 74%, 5%), hsl(150, 19%, 85%));
+  /* Elevated surfaces need a gentler lift on a dark base */
+  --bg-1: light-dark(
+    color-mix(in srgb, var(--bg), #fff 20%),
+    color-mix(in srgb, var(--bg), var(--fg) 3%)
+  );
+  --bg-2: light-dark(
+    color-mix(in srgb, var(--bg), #fff 40%),
+    color-mix(in srgb, var(--bg), var(--fg) 8%)
+  );
+  --border: light-dark(
+    color-mix(in srgb, var(--fg) 16%, transparent),
+    color-mix(in srgb, var(--fg) 8%, transparent)
+  );
+  --border-subtle: light-dark(
+    color-mix(in srgb, var(--fg) 8%, transparent),
+    color-mix(in srgb, var(--fg) 4%, transparent)
+  );
   --width: 32em;
+  /* Light fg-tinted shadows glow on dark; drop with black instead */
+  --shadow: light-dark(
+    color-mix(in srgb, var(--fg) 20%, transparent),
+    color-mix(in srgb, #000 40%, transparent)
+  );
+  --raised:
+    0 4px 6px -1px var(--shadow), 0 2px 4px -1px var(--shadow),
+    0 0 0 1px var(--border-subtle) inset;
+}
+
+/* The switch inverts the theme relative to the system preference; no
+   attribute always means "follow the system". The attribute is restored
+   from localStorage by an inline script in index.html and toggled by the
+   theme switch, so the choice survives navigation and reloads. */
+@media (prefers-color-scheme: light) {
+  :root[data-theme-invert] {
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme-invert] {
+    color-scheme: light;
+    --raised:
+      0 4px 6px -1px var(--shadow), 0 2px 4px -1px var(--shadow),
+      0 0 0 1px var(--border-subtle);
+  }
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans), monospace, menlo, monaco;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html,
