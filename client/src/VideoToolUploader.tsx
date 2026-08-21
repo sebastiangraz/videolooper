@@ -805,6 +805,9 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
               >
                 <Slider.Label className={styles.label}>
                   Quality {quality}%
+                  {effectiveTarget === "webp" &&
+                    quality === 100 &&
+                    " (lossless)"}
                 </Slider.Label>
                 <Slider.Control className={styles.sliderControl}>
                   <Slider.Indicator className={styles.sliderIndicator} />
