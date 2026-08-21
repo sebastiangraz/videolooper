@@ -349,6 +349,9 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [status, setMsg] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  // Underlying failure text, shown inside the expandable error box below the
+  // CTA. Null = no box.
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [technique, setTechnique] = useState<string>("crossfade");
   // NumberField reports null while its input is empty; submit falls back to
   // each field's default.
@@ -396,6 +399,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
     const picked = Array.from(e.target.files ?? []);
     if (!picked.length) return;
 
+    setErrorDetail(null);
     // Frame order for image sequences follows the filenames (natural sort,
     // so img2 sorts before img10).
     const sorted = [...picked].sort((a, b) =>
@@ -434,6 +438,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
     // rather than by the browser
     if (!files.length || busy) return;
     setBusy(true);
+    setErrorDetail(null);
 
     try {
       const blobUrls: string[] = [];
@@ -529,7 +534,9 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
       }).catch(() => {});
     } catch (err: unknown) {
       console.error(err);
-      setMsg((err as Error).message);
+      // The status message only renders inside the button while busy, so
+      // failures surface through the error box instead.
+      setErrorDetail(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -859,6 +866,17 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
             </Tooltip.Positioner>
           </Tooltip.Portal>
         </Tooltip.Root>
+
+        {errorDetail && (
+          <div role="alert" className={styles.errorBox}>
+            <details>
+              <summary className={styles.errorSummary}>
+                <span>You broke it my dude.</span>
+              </summary>
+              <p className={styles.errorDetail}>{errorDetail}</p>
+            </details>
+          </div>
+        )}
 
         <div className={styles.credits}>
           <a href="https://graz.io" target="_blank">

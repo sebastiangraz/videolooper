@@ -275,6 +275,57 @@ describe("VideoToolUploader", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows an expandable error box when processing fails", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "anim.gif", { type: "image/gif" });
+
+    uploadMock.mockResolvedValue({
+      url: "https://store.public.blob.vercel-storage.com/anim-abc.gif",
+    });
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => {
+        return new Response(JSON.stringify({ error: "ffmpeg exited with 1" }), {
+          status: 500,
+        });
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await renderApp("/sequence");
+    await user.upload(screen.getByLabelText(/choose images/i), file);
+    await user.click(screen.getByRole("button", { name: /create video/i }));
+
+    // Generic message first; the underlying error hides behind the disclosure
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/something went wrong/i);
+    expect(screen.getByText(/ffmpeg exited with 1/i)).not.toBeVisible();
+
+    await user.click(screen.getByText(/something went wrong/i));
+    expect(screen.getByText(/ffmpeg exited with 1/i)).toBeVisible();
+
+    // A fresh attempt clears the stale error
+    fetchMock.mockImplementation(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (input === "/api/process" && init?.method === "POST") {
+          return new Response(
+            JSON.stringify({
+              url: "https://store.public.blob.vercel-storage.com/results/anim-xyz.mp4",
+              filename: "anim.mp4",
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response(new Blob(["video"], { type: "video/mp4" }), {
+          status: 200,
+        });
+      },
+    );
+    await user.click(screen.getByRole("button", { name: /create video/i }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+    );
+  });
+
   it("uploads images in filename order and requests an image sequence", async () => {
     const user = userEvent.setup();
     const fileB = new File(["00"], "b.png", { type: "image/png" });
