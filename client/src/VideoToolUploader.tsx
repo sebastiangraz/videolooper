@@ -51,6 +51,17 @@ export const TOOLS = [
     },
     actionLabel: "Change speed",
   },
+  {
+    value: "convert",
+    label: "Convert",
+    description: "Convert a video to another format",
+    input: {
+      accept: VIDEO_ACCEPT,
+      multiple: false,
+      pickerLabel: "choose video",
+    },
+    actionLabel: "Convert",
+  },
 ];
 
 // Looping techniques for the "loop" tool. Mirrored in api/process.ts
@@ -66,6 +77,29 @@ const FORMATS = [
   { value: "gif", label: "GIF" },
   { value: "avif", label: "AVIF" },
 ];
+
+// Targets for the "convert" tool. Mirrored in api/process.ts
+// (CONVERT_TARGETS). GIF is encoded by gifski server-side, the rest by
+// ffmpeg — the dropdown deliberately doesn't distinguish.
+const CONVERT_TARGETS = [
+  { value: "mp4", label: "MP4" },
+  { value: "webm", label: "WebM" },
+  { value: "mov", label: "MOV" },
+  { value: "gif", label: "GIF" },
+  { value: "webp", label: "WebP" },
+  { value: "avif", label: "AVIF" },
+];
+
+// Extensions that map onto a convert target, so the source's own format can
+// be left out of the dropdown. Unknown extensions (.avi, .mkv, ...) keep the
+// full list.
+const EXT_TO_FORMAT: Record<string, string> = {
+  mp4: "mp4",
+  m4v: "mp4",
+  mov: "mov",
+  qt: "mov",
+  webm: "webm",
+};
 
 // Rough output-size model: bytes per pixel per frame at quality 0 → 100.
 // Real encoders vary wildly with content, so this is an order-of-magnitude
@@ -181,34 +215,41 @@ const SECONDS_FORMAT: Intl.NumberFormatOptions = {
 // replacing the old manual comma handling. An optional `preview` renders in
 // a PreviewCard anchored to the input, opened by the card's own
 // hover/focus-on-trigger behaviour (same pattern as the tab previews in
-// App.tsx).
+// App.tsx). `format` defaults to the seconds unit; pass another
+// Intl.NumberFormatOptions (or plain digits via {maximumFractionDigits: 0})
+// for non-duration fields.
 const DecimalField = ({
   id,
   value,
   onValueChange,
   min,
+  max,
   step,
   largeStep,
   disabled,
   preview,
+  format = SECONDS_FORMAT,
 }: {
   id: string;
   value: number | null;
   onValueChange: (value: number | null) => void;
   min?: number;
+  max?: number;
   step?: number;
   largeStep?: number;
   disabled: boolean;
   preview?: ReactNode;
+  format?: Intl.NumberFormatOptions;
 }) => (
   <NumberField.Root
     id={id}
     value={value}
     onValueChange={onValueChange}
     min={min}
+    max={max}
     step={step}
     largeStep={largeStep}
-    format={SECONDS_FORMAT}
+    format={format}
     allowWheelScrub={true}
     disabled={disabled}
   >
@@ -312,6 +353,9 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
   const [format, setFormat] = useState<string>("mp4");
   const [quality, setQuality] = useState<number>(100);
   const [speed, setSpeed] = useState<number>(0);
+  const [target, setTarget] = useState<string>("mp4");
+  const [gifFps, setGifFps] = useState<number | null>(15);
+  const [gifWidth, setGifWidth] = useState<number | null>(640);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [imageDims, setImageDims] = useState<{ w: number; h: number } | null>(
@@ -330,6 +374,17 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
   // Signed speed ratio → playback multiplier: ±1 → 2× faster/slower,
   // ±3 → 4×. Mirrored in api/process.ts.
   const speedMultiplier = speed >= 0 ? 1 + speed : 1 / (1 - speed);
+
+  // Convert targets minus the picked file's own format. `target` survives a
+  // file swap; if the new source claims it, fall to the first remaining
+  // option instead of resetting state.
+  const srcExt = files[0]?.name.split(".").pop()?.toLowerCase() ?? "";
+  const targetOptions = CONVERT_TARGETS.filter(
+    (t) => t.value !== EXT_TO_FORMAT[srcExt],
+  );
+  const effectiveTarget = targetOptions.some((t) => t.value === target)
+    ? target
+    : targetOptions[0].value;
 
   const pick = (e: ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? []);
@@ -403,15 +458,26 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
             }
           : tool === "speed"
             ? { blobUrl: blobUrls[0], options: { speed } }
-            : {
-                blobUrl: blobUrls[0],
-                options: {
-                  technique,
-                  fadeDuration: fadeDuration ?? 0.5,
-                  startSecond: startSecond ?? 0,
-                  quality,
-                },
-              };
+            : tool === "convert"
+              ? {
+                  blobUrl: blobUrls[0],
+                  options: {
+                    target: effectiveTarget,
+                    quality,
+                    ...(effectiveTarget === "gif"
+                      ? { fps: gifFps ?? 15, width: gifWidth ?? 640 }
+                      : {}),
+                  },
+                }
+              : {
+                  blobUrl: blobUrls[0],
+                  options: {
+                    technique,
+                    fadeDuration: fadeDuration ?? 0.5,
+                    startSecond: startSecond ?? 0,
+                    quality,
+                  },
+                };
       const res = await fetch("/api/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -647,6 +713,86 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                           quality,
                         ),
                       )}`}
+                </Slider.Label>
+                <Slider.Control className={styles.sliderControl}>
+                  <Slider.Indicator className={styles.sliderIndicator} />
+                  <Slider.Track className={styles.sliderTrack}>
+                    <Slider.Thumb className={styles.sliderThumb} />
+                  </Slider.Track>
+                </Slider.Control>
+              </Slider.Root>
+            </div>
+          </>
+        )}
+
+        {/* The dropdown waits for a file: its options depend on the picked
+            file's format (a source isn't offered as its own target). */}
+        {tool === "convert" && files.length > 0 && (
+          <>
+            <div className={styles.formGroup}>
+              <label htmlFor="target" className={styles.label}>
+                Convert to
+              </label>
+              <OptionMenu
+                id="target"
+                options={targetOptions}
+                value={effectiveTarget}
+                onValueChange={setTarget}
+                disabled={busy}
+              />
+            </div>
+
+            {effectiveTarget === "gif" && (
+              <div className={styles.horizontal}>
+                <div className={styles.formGroup}>
+                  <label htmlFor="gifFps" className={styles.label}>
+                    FPS
+                  </label>
+                  <DecimalField
+                    id="gifFps"
+                    value={gifFps}
+                    onValueChange={setGifFps}
+                    min={1}
+                    max={20}
+                    step={1}
+                    largeStep={5}
+                    disabled={busy}
+                    format={{ maximumFractionDigits: 0 }}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label htmlFor="gifWidth" className={styles.label}>
+                    Width (px)
+                  </label>
+                  <DecimalField
+                    id="gifWidth"
+                    value={gifWidth}
+                    onValueChange={setGifWidth}
+                    min={100}
+                    max={800}
+                    step={20}
+                    largeStep={100}
+                    disabled={busy}
+                    format={{ maximumFractionDigits: 0, useGrouping: false }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className={styles.formGroup}>
+              <Slider.Root
+                value={quality}
+                onValueChange={(value) => setQuality(value as number)}
+                min={1}
+                max={100}
+                step={1}
+                disabled={busy}
+                thumbAlignment="edge"
+                className={styles.slider}
+              >
+                <Slider.Label className={styles.label}>
+                  Quality {quality}%
                 </Slider.Label>
                 <Slider.Control className={styles.sliderControl}>
                   <Slider.Indicator className={styles.sliderIndicator} />

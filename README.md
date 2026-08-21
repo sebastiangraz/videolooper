@@ -9,8 +9,10 @@ videotools/
 ├─ api/                  # Vercel serverless functions
 │  ├─ upload.ts          # Issues Vercel Blob client-upload tokens
 │  ├─ process.ts         # Downloads upload(s), runs ffmpeg, stores result (also DELETE cleanup)
+│  ├─ _bin/
+│  │  └─ gifski/         # Vendored gifski binaries (video → GIF encoding)
 │  └─ _lib/
-│     └─ video-processor.js  # Pure-Node ffmpeg pipeline (loops + image sequences)
+│     └─ video-processor.js  # ffmpeg/gifski pipeline (loops, sequences, conversion)
 ├─ client/               # React + Vite frontend
 │  └─ src/
 │     ├─ VideoToolUploader.tsx      # Upload component
@@ -27,10 +29,11 @@ videotools/
 
 ## Tools
 
-Each tool is a tab with its own URL (`/loop`, `/image-sequence`, `/speed` — TanStack Router; `/` and unknown paths redirect to `/loop`); adding a tool means one entry in `TOOLS` (client) + `VALID_TOOLS` (server) and a conditional options block in the component — routes and tabs are generated from `TOOLS`, but a new tool path must also be added to the rewrite in `vercel.json` (kept as an explicit list — a catch-all rewrite swallows Vite's module URLs under `vercel dev` and blanks the page).
+Each tool is a tab with its own URL (`/loop`, `/sequence`, `/speed`, `/convert` — TanStack Router; `/` and unknown paths redirect to `/loop`); adding a tool means one entry in `TOOLS` (client) + `VALID_TOOLS` (server) and a conditional options block in the component — routes, tabs and the SPA rewrite need no changes (the rewrite in `vercel.json` is a catch-all that already excludes `api/` and Vite's module URLs).
 
 - **Loop**: seamless video loop. Options: `technique` — `reverse` (plays the video forward then reversed, no further options) or `crossfade` (adds `fadeDuration` in seconds and `startSecond` to choose the first frame, for thumbnails/social media) — and `quality` (1–100 slider, maps to the x264 CRF of the output; intermediate clips are always encoded near-lossless so quality is only spent once). Output is mp4, which is never fully lossless: quality 100 uses CRF 1 (visually lossless) because true lossless x264 forces a profile most players can't decode.
 - **Video speed**: speed a clip up or slow it down. Option: `speed` slider from −3 to +3 (0 = unchanged, center). The value is a signed ratio: +1 plays 2× faster (10 s → 5 s), −1 plays 2× slower (10 s → 20 s), ±3 → 4×. Audio is dropped (as in the other tools).
+- **Converter**: convert a video to another format. A single "Convert to" dropdown lists the targets (MP4 / WebM / MOV / GIF / WebP / AVIF) minus the uploaded file's own format; any container ffmpeg reads works as input (AVI, MKV, WMV, …). Video targets keep audio (H.264+AAC for MP4/MOV, VP9+Opus for WebM); animated-image targets (GIF/WebP/AVIF) drop it. **GIF is encoded by [gifski](https://gif.ski)** (vendored binary in `api/_bin/gifski/`, ffmpeg extracts the frames): pngquant palettes + temporal dithering, far better than ffmpeg's own GIF encoder. GIF exposes `fps` (1–20) and `width` (100–800 px) next to the shared `quality` slider; videos whose `duration × fps` exceeds 600 frames are rejected with a hint to lower the FPS (PNG frames must fit the function's `/tmp`). AVIF caps at 60 s (libaom is too slow for more within the 300 s limit).
 - **Image sequence → video**: upload multiple images and assemble them into an animation. Options: `frameDuration` ("time per frame" in seconds, 0.02–10), output `format` (MP4 / GIF / AVIF), and `quality` (1–100 slider; maps to x264/libaom CRF, and for GIF to palette size — ≥80 also switches to per-frame palettes). AVIF at quality 100 is truly lossless (RGB, no chroma subsampling — expect much larger files and slower encodes); AVIF ≥90 keeps full chroma resolution (yuv444p). MP4 caps at CRF 1 (visually lossless) since true lossless x264 isn't playable in browsers; GIF is inherently limited to 256 colors. The UI shows a rough estimated output size. Frame order follows the filenames (natural sort, so `img2` comes before `img10`). Mixed sizes/formats are fine — every image is scaled and padded to the first image's dimensions (capped at 1920 px on the longest side).
 
 ## Setup
