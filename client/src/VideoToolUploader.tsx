@@ -753,7 +753,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                     value={gifFps}
                     onValueChange={setGifFps}
                     min={1}
-                    max={20}
+                    max={30}
                     step={1}
                     largeStep={5}
                     disabled={busy}

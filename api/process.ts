@@ -175,7 +175,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await downloadBlob(inputBlobUrls[0], inputPath);
 
       if (target === "gif") {
-        const fps = Math.round(clamp(options.fps, 1, 20, 15));
+        // 30 is the practical GIF ceiling: delays are centiseconds, so
+        // gifski alternates 3/4cs frames for 30fps; browsers clamp ≥50fps.
+        const fps = Math.round(clamp(options.fps, 1, 30, 15));
         const width = Math.round(clamp(options.width, 100, 800, 640));
         outputPath = await processor.videoToGif(
           inputPath,
