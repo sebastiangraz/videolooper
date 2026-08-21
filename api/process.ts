@@ -12,14 +12,31 @@ const ffmpegPath: string = require("ffmpeg-static");
 const ffprobePath: string = require("@ffprobe-installer/ffprobe").path;
 const VideoProcessor = require("./_lib/video-processor");
 
-// Mirrored in client/src/VideoToolUploader.tsx (TOOLS / TECHNIQUES / FORMATS)
-const VALID_TOOLS = ["loop", "sequence", "speed"];
+// Vendored gifski CLI (see api/_bin/gifski/README.md). The linux binary is
+// static-pie linked, so it runs on the function runtime as-is; the exec bit
+// is restored at spawn time in VideoProcessor.
+const gifskiPath: string = path.join(
+  process.cwd(),
+  "api",
+  "_bin",
+  "gifski",
+  process.platform === "win32" ? "win" : "linux",
+  process.platform === "win32" ? "gifski.exe" : "gifski",
+);
+
+// Mirrored in client/src/VideoToolUploader.tsx (TOOLS / TECHNIQUES / FORMATS
+// / CONVERT_TARGETS)
+const VALID_TOOLS = ["loop", "sequence", "speed", "convert"];
 const VALID_TECHNIQUES = ["reverse", "crossfade"];
 const VALID_FORMATS = ["mp4", "gif", "avif"];
+const CONVERT_TARGETS = ["mp4", "webm", "mov", "gif", "webp", "avif"];
 const CONTENT_TYPES: Record<string, string> = {
   mp4: "video/mp4",
   gif: "image/gif",
   avif: "image/avif",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  webp: "image/webp",
 };
 const MAX_IMAGES = 100;
 const BLOB_HOST_RE = /\.public\.blob\.vercel-storage\.com$/;
@@ -105,7 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     await fsp.mkdir(workDir, { recursive: true });
 
-    const processor = new VideoProcessor(ffmpegPath, ffprobePath);
+    const processor = new VideoProcessor(ffmpegPath, ffprobePath, gifskiPath);
     const base = String(filename)
       .replace(/\.[^.]+$/, "")
       .replace(/[^\w.-]/g, "_");
@@ -144,6 +161,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
       outputName = `${base}_video.${format}`;
       contentType = CONTENT_TYPES[format];
+    } else if (tool === "convert") {
+      const target = CONVERT_TARGETS.includes(options.target)
+        ? options.target
+        : "mp4";
+      const quality = Math.round(clamp(options.quality, 1, 100, 90));
+
+      // Keep the original extension for readability; ffmpeg sniffs the
+      // container from content, so a wrong/missing extension is fine.
+      const urlExt = path.posix.extname(new URL(inputBlobUrls[0]).pathname);
+      const ext = /^\.\w+$/.test(urlExt) ? urlExt : ".mp4";
+      const inputPath = path.join(workDir, `input${ext}`);
+      await downloadBlob(inputBlobUrls[0], inputPath);
+
+      if (target === "gif") {
+        // Absent fps → match the source framerate (capped in videoToGif).
+        // 30 is the practical GIF ceiling: delays are centiseconds, so
+        // gifski alternates 3/4cs frames for 30fps; browsers clamp ≥50fps.
+        const fps =
+          options.fps == null ? null : Math.round(clamp(options.fps, 1, 30, 15));
+        const width = Math.round(clamp(options.width, 100, 800, 640));
+        outputPath = await processor.videoToGif(
+          inputPath,
+          workDir,
+          quality,
+          fps,
+          width,
+        );
+      } else {
+        outputPath = await processor.convertVideo(
+          inputPath,
+          workDir,
+          target,
+          quality,
+        );
+      }
+      outputName = `${base}_converted.${target}`;
+      contentType = CONTENT_TYPES[target];
     } else if (tool === "speed") {
       // Signed ratio: ±1 → 2× faster/slower, ±3 → 4×. Mirrored in
       // client/src/VideoToolUploader.tsx.
@@ -200,7 +254,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err) {
     console.error("Processing error:", err);
-    return res.status(500).json({
+    // Input-shaped rejections (e.g. "Video too long...") are the user's to
+    // fix, not server faults.
+    const status =
+      err instanceof Error && /too long/i.test(err.message) ? 400 : 500;
+    return res.status(status).json({
       error: err instanceof Error ? err.message : "Processing failed",
     });
   } finally {

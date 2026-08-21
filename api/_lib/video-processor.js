@@ -3,13 +3,16 @@ const fs = require("fs").promises;
 const path = require("path");
 
 /**
- * Cross-platform video tools: seamless loops (reverse / crossfade) and
- * sequence assembly (mp4 / gif / avif), all pure-Node ffmpeg.
+ * Cross-platform video tools: seamless loops (reverse / crossfade), sequence
+ * assembly (mp4 / gif / avif) and format conversion, all pure-Node ffmpeg —
+ * except video→GIF, which pipes ffmpeg-extracted frames through the vendored
+ * gifski binary for pngquant palettes and temporal dithering.
  */
 class VideoProcessor {
-  constructor(ffmpegPath, ffprobePath) {
+  constructor(ffmpegPath, ffprobePath, gifskiPath) {
     this.ffmpeg = ffmpegPath;
     this.ffprobe = ffprobePath;
+    this.gifski = gifskiPath;
   }
 
   // x264 crf: 0 best – 51 worst; quality 100 → 1 (visually lossless — true
@@ -517,6 +520,252 @@ class VideoProcessor {
     return outputFile;
   }
 
+  // Frame budget for video→GIF: PNG frames land on the function's ~500MB
+  // ephemeral disk, and at ≤800px they average well under 1MB each.
+  static get MAX_GIF_FRAMES() {
+    return 600;
+  }
+
+  // libaom is slow enough that long clips would blow the 300s function
+  // timeout, so animated AVIF gets a duration ceiling.
+  static get MAX_AVIF_SECONDS() {
+    return 60;
+  }
+
+  async convertVideo(inputFile, workDir, target, quality = 90) {
+    console.log(`Converting to ${target} (quality ${quality})...`);
+
+    const outputFile = path.join(workDir, `output.${target}`);
+    // yuv420p needs even dimensions and odd-sized sources exist.
+    const evenScale = "scale=trunc(iw/2)*2:trunc(ih/2)*2";
+
+    if (target === "webm") {
+      // VP9 crf: 0 best – 63 worst; quality 100 → 10, quality 1 → 50.
+      const crf = String(Math.round(50 - (quality / 100) * 40));
+      await this.runFFmpeg([
+        "-y",
+        "-i",
+        inputFile,
+        "-vf",
+        evenScale,
+        "-c:v",
+        "libvpx-vp9",
+        "-crf",
+        crf,
+        "-b:v",
+        "0",
+        "-row-mt",
+        "1",
+        "-cpu-used",
+        "4",
+        "-deadline",
+        "good",
+        "-pix_fmt",
+        "yuv420p",
+        // Opus rejects some surround layouts, so downmix to stereo.
+        "-c:a",
+        "libopus",
+        "-b:a",
+        "128k",
+        "-ac",
+        "2",
+        outputFile,
+      ]);
+    } else if (target === "webp") {
+      // Animated WebP is intra-only (every frame is a standalone lossy
+      // still), so output often exceeds the source video's size — inherent
+      // to the format, not the settings. Don't be tempted by cr_threshold:
+      // its block skipping leaves stale gray squares in flat/dark/bright
+      // regions, for a measured saving of only a few percent.
+      //
+      const fps = Math.min(await this.getVideoFPS(inputFile), 30);
+      const webpScale = `fps=${fps},scale='min(800,iw)':-2:flags=lanczos`;
+      if (quality >= 100) {
+        // True lossless (relative to the decoded RGB frames): no VP8
+        // quantization at all, so none of its block-grid artifacts on
+        // solid colors. -q:v in lossless mode means compression effort,
+        // not fidelity. Expect large files.
+        await this.runFFmpeg([
+          "-y",
+          "-i",
+          inputFile,
+          "-vf",
+          webpScale,
+          "-c:v",
+          "libwebp_anim",
+          "-lossless",
+          "1",
+          "-q:v",
+          "75",
+          "-pix_fmt",
+          "bgra",
+          "-loop",
+          "0",
+          "-an",
+          outputFile,
+        ]);
+      } else {
+        // The slider maps to 65–100 rather than libwebp's raw scale: below
+        // ~83 VP8 quantizes fine texture down to per-block averages, which
+        // reads as a block grid on solid colors (x264 at the same slider
+        // position preserves texture, so the formats would look wildly
+        // different at "equal" quality).
+        const webpQuality = Math.round(65 + (quality / 100) * 35);
+        await this.runFFmpeg([
+          "-y",
+          "-i",
+          inputFile,
+          "-vf",
+          webpScale,
+          "-c:v",
+          "libwebp_anim",
+          "-q:v",
+          String(webpQuality),
+          // "icon" despite the name: it disables spatial noise shaping,
+          // which otherwise starves flat/solid regions of bits and leaves a
+          // faint block grid there. Measured better PSNR than the default
+          // on both flat and detailed content (~12% larger on detail-heavy
+          // frames).
+          "-preset",
+          "icon",
+          "-loop",
+          "0",
+          "-an",
+          outputFile,
+        ]);
+      }
+    } else if (target === "avif") {
+      const duration = await this.getVideoDuration(inputFile);
+      if (duration > VideoProcessor.MAX_AVIF_SECONDS) {
+        throw new Error(
+          `Video too long for AVIF: ${Math.round(duration)}s exceeds the ` +
+            `${VideoProcessor.MAX_AVIF_SECONDS}s limit (AVIF encoding is ` +
+            `slow). Trim the video or pick another format.`,
+        );
+      }
+      // AV1 crf mapped like the webm branch: quality 100 → 10, quality 1 →
+      // 50. (The sequence tool's 63·(1−q) curve reaches crf 0 at quality
+      // 100 — near-lossless, which balloons video conversions.) Width caps
+      // at 800 like the other animated-image targets; the trunc keeps odd
+      // sub-800 sources even for yuv420p.
+      const crf = Math.round(50 - (quality / 100) * 40);
+      const fps = Math.min(await this.getVideoFPS(inputFile), 30);
+      await this.runFFmpeg([
+        "-y",
+        "-i",
+        inputFile,
+        "-vf",
+        `fps=${fps},scale='trunc(min(800,iw)/2)*2':-2:flags=lanczos`,
+        "-c:v",
+        "libaom-av1",
+        "-crf",
+        String(crf),
+        "-b:v",
+        "0",
+        "-cpu-used",
+        "8",
+        "-row-mt",
+        "1",
+        "-threads",
+        "0",
+        "-pix_fmt",
+        "yuv420p",
+        "-an",
+        "-f",
+        "avif",
+        outputFile,
+      ]);
+    } else {
+      // mp4 / mov: H.264 + AAC.
+      const crf = VideoProcessor.x264Crf(quality);
+      const args = [
+        "-y",
+        "-i",
+        inputFile,
+        "-vf",
+        evenScale,
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        crf,
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+      ];
+      if (target === "mp4") {
+        args.push("-movflags", "+faststart");
+      }
+      args.push(outputFile);
+      await this.runFFmpeg(args);
+    }
+
+    return outputFile;
+  }
+
+  async videoToGif(inputFile, workDir, quality = 90, fps = null, width = 640) {
+    // No explicit fps → match the source, capped at GIF's practical ceiling
+    // (delays are centiseconds; browsers clamp anything ≥50fps).
+    if (fps == null) {
+      fps = Math.max(1, Math.min(Math.round(await this.getVideoFPS(inputFile)), 30));
+    }
+    console.log(
+      `Converting to GIF via gifski (quality ${quality}, ${fps} fps, ${width}px)...`,
+    );
+
+    const duration = await this.getVideoDuration(inputFile);
+    const maxFrames = VideoProcessor.MAX_GIF_FRAMES;
+    if (duration * fps > maxFrames) {
+      throw new Error(
+        `Video too long for GIF: ${Math.round(duration)}s at ${fps} fps ` +
+          `exceeds ${maxFrames} frames. Lower the FPS or trim the video to ` +
+          `${Math.floor(maxFrames / fps)}s or less.`,
+      );
+    }
+
+    const framesDir = path.join(workDir, "gif_frames");
+    await fs.mkdir(framesDir, { recursive: true });
+
+    try {
+      await this.runFFmpeg([
+        "-y",
+        "-i",
+        inputFile,
+        "-vf",
+        `fps=${fps},scale='min(${width},iw)':-2:flags=lanczos`,
+        path.join(framesDir, "frame_%05d.png"),
+      ]);
+
+      const frames = (await fs.readdir(framesDir))
+        .filter((f) => f.endsWith(".png"))
+        .sort()
+        .map((f) => path.join(framesDir, f));
+      if (!frames.length) {
+        throw new Error("No frames extracted from video");
+      }
+
+      const outputFile = path.join(workDir, "output.gif");
+      // spawn uses no shell, so the frame list is passed as explicit args
+      // (600 paths ≈ 40KB, far under the platform arg limit).
+      await this.runGifski([
+        "--fps",
+        String(fps),
+        "--quality",
+        String(quality),
+        "-o",
+        outputFile,
+        ...frames,
+      ]);
+      return outputFile;
+    } finally {
+      await fs.rm(framesDir, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+
   async changeSpeed(inputFile, multiplier) {
     console.log(`Changing playback speed by ${multiplier}x...`);
 
@@ -696,6 +945,19 @@ class VideoProcessor {
 
   runFFprobe(args, options = {}) {
     return this.runCommand(this.ffprobe, args, options);
+  }
+
+  async runGifski(args, options = {}) {
+    if (!this.gifski) {
+      throw new Error("gifski binary path not configured");
+    }
+    // The vendored binary's exec bit may not survive a Windows checkout or
+    // the deploy bundling, so restore it before the first spawn.
+    if (process.platform !== "win32" && !this.gifskiChmodDone) {
+      await fs.chmod(this.gifski, 0o755).catch(() => {});
+      this.gifskiChmodDone = true;
+    }
+    return this.runCommand(this.gifski, args, options);
   }
 
   runCommand(command, args, options = {}) {

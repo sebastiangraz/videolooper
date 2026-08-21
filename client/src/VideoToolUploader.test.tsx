@@ -57,18 +57,14 @@ describe("VideoToolUploader", () => {
     await renderApp();
 
     await user.hover(screen.getByRole("button", { name: /^loop$/i }));
-    expect(
-      await screen.findByText(/please upload a file first/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/upload a file/i)).toBeInTheDocument();
 
     await user.unhover(screen.getByRole("button", { name: /^loop$/i }));
     await user.upload(screen.getByLabelText(/choose video/i), file);
 
     await user.hover(screen.getByRole("button", { name: /^loop$/i }));
     await waitFor(() =>
-      expect(
-        screen.queryByText(/please upload a file first/i),
-      ).not.toBeInTheDocument(),
+      expect(screen.queryByText(/upload a file/i)).not.toBeInTheDocument(),
     );
   });
 
@@ -279,6 +275,57 @@ describe("VideoToolUploader", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows an expandable error box when processing fails", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "anim.gif", { type: "image/gif" });
+
+    uploadMock.mockResolvedValue({
+      url: "https://store.public.blob.vercel-storage.com/anim-abc.gif",
+    });
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => {
+        return new Response(JSON.stringify({ error: "ffmpeg exited with 1" }), {
+          status: 500,
+        });
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await renderApp("/sequence");
+    await user.upload(screen.getByLabelText(/choose images/i), file);
+    await user.click(screen.getByRole("button", { name: /create video/i }));
+
+    // Generic message first; the underlying error hides behind the disclosure
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/something went wrong/i);
+    expect(screen.getByText(/ffmpeg exited with 1/i)).not.toBeVisible();
+
+    await user.click(screen.getByText(/something went wrong/i));
+    expect(screen.getByText(/ffmpeg exited with 1/i)).toBeVisible();
+
+    // A fresh attempt clears the stale error
+    fetchMock.mockImplementation(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (input === "/api/process" && init?.method === "POST") {
+          return new Response(
+            JSON.stringify({
+              url: "https://store.public.blob.vercel-storage.com/results/anim-xyz.mp4",
+              filename: "anim.mp4",
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response(new Blob(["video"], { type: "video/mp4" }), {
+          status: 200,
+        });
+      },
+    );
+    await user.click(screen.getByRole("button", { name: /create video/i }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+    );
+  });
+
   it("uploads images in filename order and requests an image sequence", async () => {
     const user = userEvent.setup();
     const fileB = new File(["00"], "b.png", { type: "image/png" });
@@ -409,5 +456,130 @@ describe("VideoToolUploader", () => {
       filename: "clip.mp4",
       options: { speed: 1 },
     });
+  });
+
+  it("offers convert targets minus the source format and requests a GIF conversion", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "clip.mov", { type: "video/quicktime" });
+
+    uploadMock.mockResolvedValue({
+      url: "https://store.public.blob.vercel-storage.com/clip-abc.mov",
+    });
+    const resultUrl =
+      "https://store.public.blob.vercel-storage.com/results/clip_converted-xyz.gif";
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (input === "/api/process" && init?.method === "POST") {
+          return new Response(
+            JSON.stringify({ url: resultUrl, filename: "clip_converted.gif" }),
+            { status: 200 },
+          );
+        }
+        if (input === resultUrl) {
+          return new Response(new Blob(["gif"], { type: "image/gif" }), {
+            status: 200,
+          });
+        }
+        if (input === "/api/process" && init?.method === "DELETE") {
+          return new Response(null, { status: 204 });
+        }
+        throw new Error(`Unexpected fetch: ${input}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await renderApp("/convert");
+    // The dropdown depends on the picked file's format, so it waits for one
+    expect(screen.queryByText(/convert to/i)).not.toBeInTheDocument();
+
+    await user.upload(screen.getByLabelText(/choose video/i), file);
+    // Open the target menu: the source's own format is not offered
+    await user.click(screen.getByLabelText(/convert to/i));
+    expect(
+      await screen.findByRole("menuitemradio", { name: /mp4/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitemradio", { name: /mov/i }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("menuitemradio", { name: /gif/i }));
+
+    // GIF-only controls appear with the target
+    expect(screen.getByLabelText(/fps/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/width/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^convert$/i }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/process",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
+    );
+    const processBody = JSON.parse(
+      (fetchMock.mock.calls.find(([, init]) => init?.method === "POST")?.[1]
+        ?.body as string) ?? "{}",
+    );
+    expect(processBody).toMatchObject({
+      tool: "convert",
+      blobUrl: "https://store.public.blob.vercel-storage.com/clip-abc.mov",
+      filename: "clip.mov",
+    });
+    // fps is absent when the field is left empty — the server then matches
+    // the source framerate
+    expect(processBody.options).toEqual({
+      target: "gif",
+      quality: 100,
+      width: 640,
+    });
+  });
+
+  it("defaults to the first non-source target and omits GIF options", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "tiny.mp4", { type: "video/mp4" });
+
+    uploadMock.mockResolvedValue({
+      url: "https://store.public.blob.vercel-storage.com/tiny-abc.mp4",
+    });
+    const resultUrl =
+      "https://store.public.blob.vercel-storage.com/results/tiny_converted-xyz.webm";
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (input === "/api/process" && init?.method === "POST") {
+          return new Response(
+            JSON.stringify({ url: resultUrl, filename: "tiny_converted.webm" }),
+            { status: 200 },
+          );
+        }
+        if (input === resultUrl) {
+          return new Response(new Blob(["video"], { type: "video/webm" }), {
+            status: 200,
+          });
+        }
+        if (input === "/api/process" && init?.method === "DELETE") {
+          return new Response(null, { status: 204 });
+        }
+        throw new Error(`Unexpected fetch: ${input}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await renderApp("/convert");
+    await user.upload(screen.getByLabelText(/choose video/i), file);
+    // MP4 source: the default target "mp4" is excluded, so WebM takes over
+    await user.click(screen.getByRole("button", { name: /^convert$/i }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/process",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
+    );
+    const processBody = JSON.parse(
+      (fetchMock.mock.calls.find(([, init]) => init?.method === "POST")?.[1]
+        ?.body as string) ?? "{}",
+    );
+    expect(processBody.tool).toBe("convert");
+    // Exact match: fps/width must not tag along for non-GIF targets
+    expect(processBody.options).toEqual({ target: "webm", quality: 100 });
   });
 });
