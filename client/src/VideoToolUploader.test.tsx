@@ -57,18 +57,14 @@ describe("VideoToolUploader", () => {
     await renderApp();
 
     await user.hover(screen.getByRole("button", { name: /^loop$/i }));
-    expect(
-      await screen.findByText(/please upload a file first/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/upload a file/i)).toBeInTheDocument();
 
     await user.unhover(screen.getByRole("button", { name: /^loop$/i }));
     await user.upload(screen.getByLabelText(/choose video/i), file);
 
     await user.hover(screen.getByRole("button", { name: /^loop$/i }));
     await waitFor(() =>
-      expect(
-        screen.queryByText(/please upload a file first/i),
-      ).not.toBeInTheDocument(),
+      expect(screen.queryByText(/upload a file/i)).not.toBeInTheDocument(),
     );
   });
 

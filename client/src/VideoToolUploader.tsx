@@ -854,7 +854,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
               sideOffset={10}
             >
               <Tooltip.Popup className={styles.tooltipPopup}>
-                Please upload a file first
+                Upload a file
               </Tooltip.Popup>
             </Tooltip.Positioner>
           </Tooltip.Portal>
