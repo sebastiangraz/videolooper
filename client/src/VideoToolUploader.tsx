@@ -11,6 +11,7 @@ import { Menu } from "@base-ui/react/menu";
 import { NumberField } from "@base-ui/react/number-field";
 import { PreviewCard } from "@base-ui/react/preview-card";
 import { Slider } from "@base-ui/react/slider";
+import { Tooltip } from "@base-ui/react/tooltip";
 import styles from "./VideoToolUploader.module.css";
 
 const VIDEO_ACCEPT =
@@ -368,7 +369,9 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
   };
 
   const submit = async () => {
-    if (!files.length) return;
+    // The button is only aria-disabled, so unusable states are rejected here
+    // rather than by the browser
+    if (!files.length || busy) return;
     setBusy(true);
 
     try {
@@ -571,7 +574,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                     ? `${(1 + speed).toFixed(1)}x faster`
                     : `${(1 - speed).toFixed(1)}x slower`}
                 {videoDuration > 0 &&
-                  ` – ~${(videoDuration / speedMultiplier).toFixed(1)}s`}
+                  ` ~${(videoDuration / speedMultiplier).toFixed(1)}s`}
                 )
               </Slider.Label>
               <div className={styles.sliderTicks}>
@@ -656,19 +659,45 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
           </>
         )}
 
-        {videoDuration > 0 && (
+        {/* {videoDuration > 0 && (
           <small className={styles.label}>
             Video length: {videoDuration} seconds
           </small>
-        )}
-        <button
-          onClick={submit}
-          disabled={!files.length || busy}
-          className={styles.button}
-        >
-          {busy ? status && status : currentTool.actionLabel}
-          {busy && <div className={styles.spinner} />}
-        </button>
+        )} */}
+        {/* A natively disabled button dispatches no pointer events, so the
+            tooltip explaining why it can't be pressed would never open. It
+            carries aria-disabled instead, which leaves it hoverable and in
+            the tab order; submit() rejects the unusable states. The tooltip
+            only speaks for the missing-file case, so it's switched off once
+            files are picked (the button is also disabled while busy). */}
+        <Tooltip.Root disabled={files.length > 0}>
+          <Tooltip.Trigger
+            delay={100}
+            closeOnClick={false}
+            render={
+              <button
+                onClick={submit}
+                aria-disabled={!files.length || busy}
+                className={styles.button}
+              />
+            }
+          >
+            {busy ? status && status : currentTool.actionLabel}
+            {busy && <div className={styles.spinner} />}
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Positioner
+              className={styles.tooltipPositioner}
+              side="bottom"
+              align="start"
+              sideOffset={10}
+            >
+              <Tooltip.Popup className={styles.tooltipPopup}>
+                Please upload a file first
+              </Tooltip.Popup>
+            </Tooltip.Positioner>
+          </Tooltip.Portal>
+        </Tooltip.Root>
 
         <div className={styles.credits}>
           <a href="https://graz.io" target="_blank">

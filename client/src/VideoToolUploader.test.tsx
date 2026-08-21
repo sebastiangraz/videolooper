@@ -29,10 +29,12 @@ const renderApp = async (initialPath = "/loop") => {
 };
 
 describe("VideoToolUploader", () => {
+  // The button is aria-disabled rather than natively disabled, so that a
+  // tooltip can explain the state on hover
   it("disables the button until a file is chosen", async () => {
     await renderApp();
     const btn = screen.getByRole("button", { name: /^loop$/i });
-    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("aria-disabled", "true");
   });
 
   it("enables the button after picking a file", async () => {
@@ -43,7 +45,31 @@ describe("VideoToolUploader", () => {
     const input = screen.getByLabelText(/choose video/i);
     await user.upload(input, file);
 
-    expect(screen.getByRole("button", { name: /^loop$/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^loop$/i })).toHaveAttribute(
+      "aria-disabled",
+      "false",
+    );
+  });
+
+  it("explains the disabled button in a tooltip, until a file is picked", async () => {
+    const user = userEvent.setup();
+    const file = new File(["00"], "tiny.mp4", { type: "video/mp4" });
+    await renderApp();
+
+    await user.hover(screen.getByRole("button", { name: /^loop$/i }));
+    expect(
+      await screen.findByText(/please upload a file first/i),
+    ).toBeInTheDocument();
+
+    await user.unhover(screen.getByRole("button", { name: /^loop$/i }));
+    await user.upload(screen.getByLabelText(/choose video/i), file);
+
+    await user.hover(screen.getByRole("button", { name: /^loop$/i }));
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/please upload a file first/i),
+      ).not.toBeInTheDocument(),
+    );
   });
 
   it("switches tool and clears the picked file when a tab is clicked", async () => {
@@ -52,12 +78,15 @@ describe("VideoToolUploader", () => {
     const router = await renderApp();
 
     await user.upload(screen.getByLabelText(/choose video/i), file);
-    expect(screen.getByRole("button", { name: /^loop$/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^loop$/i })).toHaveAttribute(
+      "aria-disabled",
+      "false",
+    );
 
     await user.click(screen.getByRole("link", { name: /sequence/i }));
     expect(
       await screen.findByRole("button", { name: /create video/i }),
-    ).toBeDisabled();
+    ).toHaveAttribute("aria-disabled", "true");
     expect(router.state.location.pathname).toBe("/sequence");
   });
 

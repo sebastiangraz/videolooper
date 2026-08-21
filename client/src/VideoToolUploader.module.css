@@ -385,6 +385,30 @@ button,
   }
 }
 
+.tooltipPositioner {
+  z-index: 10;
+  outline: none;
+}
+
+.tooltipPopup {
+  box-sizing: border-box;
+  max-width: 14rem;
+  font-size: 8.5px;
+  letter-spacing: 0.05em;
+  text-wrap: balance;
+  color: color-mix(in srgb, var(--fg) 50%, transparent);
+  outline: none;
+  transition:
+    opacity 150ms,
+    translate 150ms;
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+    translate: 0 0.25rem;
+  }
+}
+
 .numberGroup {
   display: flex;
   align-items: stretch;
@@ -502,13 +526,15 @@ button,
   color: var(--bg);
   border: none;
   cursor: pointer;
-  &:hover {
+  &:hover:not([aria-disabled="true"]) {
     background-color: color-mix(in srgb, var(--fg) 70%, transparent);
   }
 }
 
-.button:disabled {
-  opacity: 0.5;
+/* Unusable rather than :disabled, so hover and focus still reach the button
+   and can open its tooltip */
+.button[aria-disabled="true"] {
+  /* opacity: 0.5; */
   cursor: not-allowed;
 }
 
