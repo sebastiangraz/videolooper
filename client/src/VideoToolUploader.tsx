@@ -229,6 +229,7 @@ const DecimalField = ({
   disabled,
   preview,
   format = SECONDS_FORMAT,
+  placeholder,
 }: {
   id: string;
   value: number | null;
@@ -240,6 +241,7 @@ const DecimalField = ({
   disabled: boolean;
   preview?: ReactNode;
   format?: Intl.NumberFormatOptions;
+  placeholder?: string;
 }) => (
   <NumberField.Root
     id={id}
@@ -261,7 +263,10 @@ const DecimalField = ({
         <NumberField.Decrement className={styles.numberButton}>
           −
         </NumberField.Decrement>
-        <NumberField.Input className={styles.numberInput} />
+        <NumberField.Input
+          className={styles.numberInput}
+          placeholder={placeholder}
+        />
         <NumberField.Increment className={styles.numberButton}>
           +
         </NumberField.Increment>
@@ -354,7 +359,8 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
   const [quality, setQuality] = useState<number>(100);
   const [speed, setSpeed] = useState<number>(0);
   const [target, setTarget] = useState<string>("mp4");
-  const [gifFps, setGifFps] = useState<number | null>(15);
+  // null = match the source framerate (the server probes it, capped at 30)
+  const [gifFps, setGifFps] = useState<number | null>(null);
   const [gifWidth, setGifWidth] = useState<number | null>(640);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [videoUrl, setVideoUrl] = useState<string>("");
@@ -465,7 +471,12 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                     target: effectiveTarget,
                     quality,
                     ...(effectiveTarget === "gif"
-                      ? { fps: gifFps ?? 15, width: gifWidth ?? 640 }
+                      ? {
+                          // fps stays home when empty: the server then
+                          // matches the source framerate
+                          ...(gifFps != null ? { fps: gifFps } : {}),
+                          width: gifWidth ?? 640,
+                        }
                       : {}),
                   },
                 }
@@ -758,6 +769,7 @@ export const VideoToolUploader = ({ tool }: { tool: string }) => {
                     largeStep={5}
                     disabled={busy}
                     format={{ maximumFractionDigits: 0 }}
+                    placeholder="source"
                   />
                 </div>
 

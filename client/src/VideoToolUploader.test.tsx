@@ -476,7 +476,13 @@ describe("VideoToolUploader", () => {
       tool: "convert",
       blobUrl: "https://store.public.blob.vercel-storage.com/clip-abc.mov",
       filename: "clip.mov",
-      options: { target: "gif", quality: 100, fps: 15, width: 640 },
+    });
+    // fps is absent when the field is left empty — the server then matches
+    // the source framerate
+    expect(processBody.options).toEqual({
+      target: "gif",
+      quality: 100,
+      width: 640,
     });
   });
 

@@ -572,8 +572,12 @@ class VideoProcessor {
         outputFile,
       ]);
     } else if (target === "webp") {
-      // Animated WebP shares the GIF guardrails (fps/width caps, no audio).
-      const fps = Math.min(await this.getVideoFPS(inputFile), 20);
+      // Animated WebP is intra-only (every frame is a standalone lossy
+      // still), so output often exceeds the source video's size — inherent
+      // to the format, not the settings. Don't be tempted by cr_threshold:
+      // its block skipping leaves stale gray squares in flat/dark/bright
+      // regions, for a measured saving of only a few percent.
+      const fps = Math.min(await this.getVideoFPS(inputFile), 30);
       await this.runFFmpeg([
         "-y",
         "-i",
@@ -581,7 +585,7 @@ class VideoProcessor {
         "-vf",
         `fps=${fps},scale='min(800,iw)':-2:flags=lanczos`,
         "-c:v",
-        "libwebp",
+        "libwebp_anim",
         "-q:v",
         String(quality),
         "-loop",
@@ -598,16 +602,19 @@ class VideoProcessor {
             `slow). Trim the video or pick another format.`,
         );
       }
-      // Same libaom mapping as the sequence tool's lossy AVIF branch, with
-      // the fastest cpu-used since sources here are full videos.
-      const crf = Math.round(63 * (1 - quality / 100));
-      const fps = Math.min(await this.getVideoFPS(inputFile), 20);
+      // AV1 crf mapped like the webm branch: quality 100 → 10, quality 1 →
+      // 50. (The sequence tool's 63·(1−q) curve reaches crf 0 at quality
+      // 100 — near-lossless, which balloons video conversions.) Width caps
+      // at 800 like the other animated-image targets; the trunc keeps odd
+      // sub-800 sources even for yuv420p.
+      const crf = Math.round(50 - (quality / 100) * 40);
+      const fps = Math.min(await this.getVideoFPS(inputFile), 30);
       await this.runFFmpeg([
         "-y",
         "-i",
         inputFile,
         "-vf",
-        `fps=${fps},${evenScale}`,
+        `fps=${fps},scale='trunc(min(800,iw)/2)*2':-2:flags=lanczos`,
         "-c:v",
         "libaom-av1",
         "-crf",
@@ -659,7 +666,12 @@ class VideoProcessor {
     return outputFile;
   }
 
-  async videoToGif(inputFile, workDir, quality = 90, fps = 15, width = 640) {
+  async videoToGif(inputFile, workDir, quality = 90, fps = null, width = 640) {
+    // No explicit fps → match the source, capped at GIF's practical ceiling
+    // (delays are centiseconds; browsers clamp anything ≥50fps).
+    if (fps == null) {
+      fps = Math.max(1, Math.min(Math.round(await this.getVideoFPS(inputFile)), 30));
+    }
     console.log(
       `Converting to GIF via gifski (quality ${quality}, ${fps} fps, ${width}px)...`,
     );
